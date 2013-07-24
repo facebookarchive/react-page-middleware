@@ -13,9 +13,7 @@
     "optimist": "0.6.0",
     "closurecompiler": "1.1.4",
     "temp": "0.5.1",
-    "through": "~2.3.4",
-    "simplecrawler": "0.2.8",
-    "crawl": "0.3.1"
+    "through": "~2.3.4"
   },
   "author": {
     "name": "Lee Byron",
