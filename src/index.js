@@ -20,6 +20,7 @@ var path = require('path');
 var renderReactPage = require('./renderReactPage');
 var transformLessAtPath = require('./transformLessAtPath');
 var url = require('url');
+var consts = require('./consts');
 
 require('./RequireJSXExtension.js');
 require('./RequireTextExtension.js');
@@ -37,13 +38,9 @@ function send(type, res, str, mtime) {
   res.end(str);
 }
 
-var LESS_EXT = /\.less[^\/]*$/;
-var PAGE_EXT = /\.html[^\/]*$/;
-var PACKAGE_EXTENSION = /\.jsx[^\/]*$/;
-var PAGE_SRC_EXT = '.jsx';
 
 exports.provide = function provide(buildConfig) {
-  if (buildConfig.requireableMarkdown) {
+  if (buildConfig.requireableText) {
     require('./RequireTextExtension.js');
   }
   /**
@@ -57,19 +54,20 @@ exports.provide = function provide(buildConfig) {
     if (req.method !== 'GET') {
       return next();
     }
-    if (relPath.match(PAGE_EXT)) {
+    if (relPath.match(consts.PAGE_EXT_RE)) {
       clearRequireModuleCache(buildConfig.sourceDir);
-      var relReactPath = relPath.replace(PAGE_EXT, PAGE_SRC_EXT);
-      renderReactPage(buildConfig, relReactPath, function (err, markup, exists) {
+      var relReactPath =
+        relPath.replace(consts.PAGE_EXT_RE, consts.PAGE_SRC_EXT);
+      renderReactPage(buildConfig, relReactPath, function(err, markup, exists) {
         return err ? next(err) :
           !exists ? next(null, res) : send('text/html', res, markup);
       });
-    } else if (relPath.match(PACKAGE_EXTENSION)) {
+    } else if (relPath.match(consts.PACKAGE_EXT_RE)) {
       clearRequireModuleCache(buildConfig.sourceDir);
-      packageReactPageResources(buildConfig,relPath, function(err, js) {
+      packageReactPageResources(buildConfig, relPath, function(err, js) {
         return err ? next(err) : send('application/javascript', res, js);
       });
-    } else if (relPath.match(LESS_EXT)) {
+    } else if (relPath.match(consts.LESS_EXT_RE)) {
       var absPath = path.join(buildConfig.sourceDir, relPath);
       transformLessAtPath(buildConfig, absPath, function(err, css) {
         return err ? next(err) : send('text/css', res, css);

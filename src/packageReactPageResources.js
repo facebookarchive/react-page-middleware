@@ -19,15 +19,18 @@ var browserify = require('browserify');
 var fs = require('fs');
 var path = require('path');
 var reactify = require('reactify');
-var textify = require('./textify.js');
+var consts = require('./consts');
+var textify = require('./textify');
 var temp = require('temp');
 var ClosureCompiler = require("closurecompiler");
 
 var CLOSURE_LEVEL = "ADVANCED_OPTIMIZATIONS";
 
-function packageReactPageResources(buildConfig, relJSXPath, done) {
+function packageReactPageResources(buildConfig, relBundlePath, done) {
+  var relPath =
+    relBundlePath.replace(consts.PACKAGE_EXT_RE, consts.PAGE_SRC_EXT);
   var sourceDir = buildConfig.sourceDir;
-  var absPath = path.join(sourceDir, relJSXPath);
+  var absPath = path.join(sourceDir, relPath);
   fs.exists(absPath, onExists);
   function onExists(exists) {
     if (!exists) {
@@ -40,10 +43,7 @@ function packageReactPageResources(buildConfig, relJSXPath, done) {
       expose: 'react-core',
       basedir: sourceDir
     });
-    jsxBrowserify.require(absPath, {
-      expose: relJSXPath,
-      basedir: sourceDir
-    });
+    jsxBrowserify.require(absPath, {expose: relPath, basedir: sourceDir});
 
     var dev = buildConfig.dev;
     var bundleConfig = {transform: reactify, debug: dev}; // Dev for srcmaps!

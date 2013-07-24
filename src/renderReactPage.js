@@ -16,6 +16,7 @@
 "use strict";
 var fs = require('fs');
 var path = require('path');
+var consts = require('./consts');
 
 function createClientScript(relativeJSPath) {
   return (
@@ -34,7 +35,9 @@ function createClientScript(relativeJSPath) {
 
 function createClientIncludeScript(relativeJSPath) {
   return (
-    '<script src="' + relativeJSPath + '"></script>'
+    '<script src="' +
+    relativeJSPath.replace(consts.PAGE_SRC_EXT_RE, consts.PACKAGE_EXT) +
+    '"></script>'
   );
 }
 
@@ -46,9 +49,13 @@ function renderReactPage(buildConfig, relPath, done) {
     }
     try {
       require('./RequireJSXExtension.js');
-      var component = require(absPath);
       var React = require('react-core').React;
-      React.renderComponentToString(component(), function(renderedString) {
+      var component = require(absPath);
+      var instance = component();
+      if (!React.isValidComponent(instance)) {
+        throw new Error('module ' + relPath + ' is not a React component');
+      }
+      React.renderComponentToString(instance, function(renderedString) {
         var jsSources = createClientIncludeScript(relPath);
         // Todo: Don't reflow - and root must be at <html>!
         var jsScripts = createClientScript(relPath);
