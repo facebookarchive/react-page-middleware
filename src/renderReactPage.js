@@ -18,14 +18,14 @@ var fs = require('fs');
 var path = require('path');
 var consts = require('./consts');
 
-function createClientScript(relativeJSPath) {
+function createClientScript(relativeJSPath, props) {
   return (
     '<script>' +
       'var React = require(\'react-core\').React;' +
       'var Component = require(\'' + relativeJSPath + '\');' +
       'document.addEventListener("DOMContentLoaded", function () {'+
         'React.renderComponent(' +
-          'Component(),' +
+          'Component('+ JSON.stringify(props) + '),' +
           'document.body' +
         ');' +
       '});' +
@@ -41,8 +41,8 @@ function createClientIncludeScript(relativeJSPath) {
   );
 }
 
-function renderReactPage(buildConfig, relPath, done) {
-  var absPath = path.join(buildConfig.sourceDir, relPath);
+function renderReactPage(buildConfig, relModulePath, props, done) {
+  var absPath = path.join(buildConfig.sourceDir, relModulePath);
   fs.exists(absPath, function(exists) {
     if (!exists) {
       return done(null, null, false);
@@ -51,14 +51,14 @@ function renderReactPage(buildConfig, relPath, done) {
       require('./RequireJSXExtension.js');
       var React = require('react-core').React;
       var component = require(absPath);
-      var instance = component();
+      var instance = component(props);
       if (!React.isValidComponent(instance)) {
-        throw new Error('module ' + relPath + ' is not a React component');
+        throw new Error('module ' + relModulePath + ' is not a React component');
       }
       React.renderComponentToString(instance, function(renderedString) {
-        var jsSources = createClientIncludeScript(relPath);
+        var jsSources = createClientIncludeScript(relModulePath);
         // Todo: Don't reflow - and root must be at <html>!
-        var jsScripts = createClientScript(relPath);
+        var jsScripts = createClientScript(relModulePath, props);
         var page =
           renderedString.replace('</body>', jsSources + jsScripts + '</body>');
         done(null, page, true);

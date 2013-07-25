@@ -8,7 +8,7 @@
     "react-core": "git://github.com/jordwalke/npm-react-core.git",
     "async": "0.2.9",
     "browserify": "2.22.0",
-    "react-tools": "0.3.3",
+    "react-tools": "0.4.0",
     "reactify": "0.1.4",
     "optimist": "0.6.0",
     "closurecompiler": "1.1.4",

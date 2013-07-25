@@ -23,7 +23,6 @@ var url = require('url');
 var consts = require('./consts');
 
 require('./RequireJSXExtension.js');
-require('./RequireTextExtension.js');
 
 /**
  * TODO: Shouldn't we be calling next here, if we want to allow something like a
@@ -40,6 +39,9 @@ function send(type, res, str, mtime) {
 
 
 exports.provide = function provide(buildConfig) {
+  if (!buildConfig.sourceDir) {
+    throw new Error('Must specify a source dir');
+  }
   if (buildConfig.requireableText) {
     require('./RequireTextExtension.js');
   }
@@ -50,30 +52,47 @@ exports.provide = function provide(buildConfig) {
    * that old module version, saving a module cache invalidatino.
    */
   return function provideImpl(req, res, next) {
-    var relPath = url.parse(req.url).pathname;
     if (req.method !== 'GET') {
       return next();
     }
-    if (relPath.match(consts.PAGE_EXT_RE)) {
-      clearRequireModuleCache(buildConfig.sourceDir);
-      var relReactPath =
-        relPath.replace(consts.PAGE_EXT_RE, consts.PAGE_SRC_EXT);
-      renderReactPage(buildConfig, relReactPath, function(err, markup, exists) {
-        return err ? next(err) :
-          !exists ? next(null, res) : send('text/html', res, markup);
-      });
-    } else if (relPath.match(consts.PACKAGE_EXT_RE)) {
-      clearRequireModuleCache(buildConfig.sourceDir);
-      packageReactPageResources(buildConfig, relPath, function(err, js) {
-        return err ? next(err) : send('application/javascript', res, js);
-      });
-    } else if (relPath.match(consts.LESS_EXT_RE)) {
-      var absPath = path.join(buildConfig.sourceDir, relPath);
-      transformLessAtPath(buildConfig, absPath, function(err, css) {
-        return err ? next(err) : send('text/css', res, css);
-      });
-    } else {
-      return next();
-    }
+    var relPath = url.parse(req.url).pathname;
+    var componentRouter = buildConfig.componentRouter || exports.defaultRouter;
+    componentRouter(relPath, req, function(err, desc) {
+      if (err) {
+        return next(err);
+      }
+      if (desc) {
+        clearRequireModuleCache(buildConfig.sourceDir);
+        // Todo: Merge the props with standard request params.
+        var relativeModulePath = desc.relativeModulePath;
+        var props = desc.additionalProps || {};
+        renderReactPage(buildConfig, relativeModulePath, props, function(err, markup, exists) {
+          return err ? next(err) :
+            !exists ? next(null, res) : send('text/html', res, markup);
+        });
+      } else if (relPath.match(consts.PACKAGE_EXT_RE)) {
+        clearRequireModuleCache(buildConfig.sourceDir);
+        packageReactPageResources(buildConfig, relPath, function(err, js) {
+          return err ? next(err) : send('application/javascript', res, js);
+        });
+      } else if (relPath.match(consts.LESS_EXT_RE)) {
+        var absPath = path.join(buildConfig.sourceDir, relPath);
+        transformLessAtPath(buildConfig, absPath, function(err, css) {
+          return err ? next(err) : send('text/css', res, css);
+        });
+      } else {
+        return next();
+      }
+    });
   };
+};
+
+exports.defaultRouter = function(relPath, req, next) {
+  if (relPath.match(consts.PAGE_EXT_RE)) {
+    var relReactPath =
+      relPath.replace(consts.PAGE_EXT_RE, consts.PAGE_SRC_EXT);
+    next(null, {relativeModulePath: relReactPath});
+  } else {
+    return next(null, null);
+  }
 };
