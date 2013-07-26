@@ -21,10 +21,6 @@ var path = require('path');
 var reactify = require('reactify');
 var consts = require('./consts');
 var textify = require('./textify');
-var temp = require('temp');
-var ClosureCompiler = require("closurecompiler");
-
-var CLOSURE_LEVEL = "ADVANCED_OPTIMIZATIONS";
 
 function packageReactPageResources(buildConfig, relBundlePath, done) {
   var relPath =
@@ -48,38 +44,11 @@ function packageReactPageResources(buildConfig, relBundlePath, done) {
     var dev = buildConfig.dev;
     var bundleConfig = {transform: reactify, debug: dev}; // Dev for srcmaps!
     jsxBrowserify.bundle(bundleConfig, function (err, bundledJS) {
-        if (err) {
-          return done(err);
-        }
-        if (buildConfig.closure) {
-          temp.open('reactBuild', function(err, info) {
-            if (err) {
-              return done(err);
-            }
-            fs.write(info.fd, bundledJS);
-            fs.close(info.fd, function(err) {
-              if (err) {
-                return done(err);
-              }
-
-              // Only conditionally do this.
-              ClosureCompiler.compile(info.path, {compilation_level: CLOSURE_LEVEL},
-                function (err, compiledJS) {
-                  fs.unlink(info.path);
-                  if (compiledJS) {
-                    done(null, compiledJS);
-                  } else if (err) {
-                    done(err);
-                  }
-                }
-              );
-            });
-          });
-        } else {
-          done(null, bundledJS);
-        }
+      if (err) {
+        return done(err);
       }
-    );
+      done(null, bundledJS);
+    });
   }
 }
 
