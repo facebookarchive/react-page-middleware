@@ -20,7 +20,7 @@ var consts = require('./consts');
 
 function createClientScript(relativeJSPath, props) {
   return (
-    '<script>' +
+    '<script type="text/javascript">' +
       'var React = require(\'react-core\').React;' +
       'var Component = require(\'' + relativeJSPath + '\');' +
       'document.addEventListener("DOMContentLoaded", function () {'+
@@ -35,9 +35,10 @@ function createClientScript(relativeJSPath, props) {
 
 function createClientIncludeScript(relativeJSPath) {
   return (
-    '<script src="' +
-    relativeJSPath.replace(consts.PAGE_SRC_EXT_RE, consts.PACKAGE_EXT) +
-    '"></script>'
+    '<script ' +
+    'type="text/javascript" src="' +
+    relativeJSPath.replace(consts.PAGE_SRC_EXT_RE, consts.REACT_PACKAGE_EXT) +
+    '"></script><packaged ></packaged>'
   );
 }
 
@@ -60,7 +61,7 @@ function renderReactPage(buildConfig, relModulePath, props, done) {
         // Todo: Don't reflow - and root must be at <html>!
         var jsScripts = createClientScript(relModulePath, props);
         var page =
-          renderedString.replace('</body>', jsSources + jsScripts + '</body>');
+          renderedString.replace('</body></html', jsSources + jsScripts + '</body></html');
         done(null, page, true);
       });
     } catch (err) {

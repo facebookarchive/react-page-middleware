@@ -15,15 +15,29 @@
  */
 "use strict";
 
+var docblock = require('react-tools/vendor/fbtransform/lib/docblock');
 var fs = require('fs');
 var jsxTransform = require('react-tools').transform;
 
+var parseDocBlock = function(data) {
+  return docblock.parseAsObject(docblock.extract(data));
+};
 
-require.extensions['.jsx'] = function(module) {
+/**
+ * .jsx extension support is currently deprecated - may turn it back on
+ * eventually.
+ */
+require.extensions['.js'] = require.extensions['.jsx'] = function(module) {
+  var fileContents = fs.readFileSync(module.filename, 'utf8');
+  var isJSXExtensionRe = /^.+\.jsx$/;
+  var isJSXExtension = isJSXExtensionRe.exec(module.filename);
+  var docBlock = parseDocBlock(fileContents);
+  var output =
+    isJSXExtension || docBlock.jsx ? jsxTransform(fileContents) :
+    fileContents;
+
   module._compile(
-    jsxTransform(
-      fs.readFileSync(module.filename, 'utf8')
-    ),
+    output,
     module.filename
   );
 };

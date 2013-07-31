@@ -16,10 +16,15 @@
 "use strict";
 
 module.exports = {
-  PACKAGE_EXT: '.bundle.jsx',
-  PACKAGE_EXT_RE: /\.bundle\.jsx[^\/]*$/g,
-  PAGE_SRC_EXT: '.jsx',
-  PAGE_SRC_EXT_RE: /\.jsx[^\/]*$/g,
+  // Some pages might want to expose react-core as an export.
+  // This indicates to the dynamic packaging endpoint that this is what we want.
+  REACT_PACKAGE_EXT: '.reactBundle.js',
+  REACT_PACKAGE_EXT_RE: /\.reactBundle\.js[^\/]*$/g,
+
+  PACKAGE_EXT: '.bundle.js',
+  PACKAGE_EXT_RE: /\.bundle\.js[^\/]*$/g,
+  PAGE_SRC_EXT: '.js',
+  PAGE_SRC_EXT_RE: /\.js[^\/]*$/g,
   PAGE_EXT_RE: /\.html[^\/]*$/,
   LESS_EXT_RE: /\.less[^\/]*$/
 };

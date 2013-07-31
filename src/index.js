@@ -70,7 +70,9 @@ exports.provide = function provide(buildConfig) {
           return err ? next(err) :
             !exists ? next(null, res) : send('text/html', res, markup);
         });
-      } else if (relPath.match(consts.PACKAGE_EXT_RE)) {
+      } else if (
+          relPath.match(consts.PACKAGE_EXT_RE) ||
+          relPath.match(consts.REACT_PACKAGE_EXT_RE)) {
         clearRequireModuleCache(buildConfig.sourceDir);
         packageReactPageResources(buildConfig, relPath, function(err, js) {
           return err ? next(err) : send('application/javascript', res, js);
