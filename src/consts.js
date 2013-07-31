@@ -19,12 +19,12 @@ module.exports = {
   // Some pages might want to expose react-core as an export.
   // This indicates to the dynamic packaging endpoint that this is what we want.
   REACT_PACKAGE_EXT: '.reactBundle.js',
-  REACT_PACKAGE_EXT_RE: /\.reactBundle\.js[^\/]*$/g,
+  REACT_PACKAGE_EXT_RE: /\.reactBundle\.js[^\/]*$/,
 
   PACKAGE_EXT: '.bundle.js',
-  PACKAGE_EXT_RE: /\.bundle\.js[^\/]*$/g,
+  PACKAGE_EXT_RE: /\.bundle\.js[^\/]*$/,
   PAGE_SRC_EXT: '.js',
-  PAGE_SRC_EXT_RE: /\.js[^\/]*$/g,
+  PAGE_SRC_EXT_RE: /\.js[^\/]*$/,
   PAGE_EXT_RE: /\.html[^\/]*$/,
   LESS_EXT_RE: /\.less[^\/]*$/
 };
