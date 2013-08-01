@@ -23,8 +23,6 @@ var consts = require('./consts');
 var textify = require('./textify');
 
 function packageReactPageResources(buildConfig, relBundlePath, done) {
-  console.log(consts.REACT_PACKAGE_EXT_RE);
-  console.log(relBundlePath);
   var shouldExposeReact = consts.REACT_PACKAGE_EXT_RE.test(relBundlePath);
   var relPath =
     relBundlePath.replace(consts.PACKAGE_EXT_RE, consts.PAGE_SRC_EXT)
@@ -44,9 +42,6 @@ function packageReactPageResources(buildConfig, relBundlePath, done) {
         expose: 'react-core',
         basedir: sourceDir
       });
-    } else {
-      console.log(consts.REACT_PACKAGE_EXT_RE);
-      console.log(relBundlePath);
     }
     jsxBrowserify.require(absPath, {expose: relPath, basedir: sourceDir});
 
@@ -56,7 +51,7 @@ function packageReactPageResources(buildConfig, relBundlePath, done) {
       if (err) {
         return done(err);
       }
-      done(null, bundledJS);
+      done(null, bundledJS + ';require("' + relPath +'");');
     });
   }
 }
