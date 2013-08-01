@@ -37,7 +37,11 @@ function packageReactPageResources(buildConfig, relBundlePath, done) {
     var jsxBrowserify = browserify();
     jsxBrowserify.transform(reactify);
     jsxBrowserify.transform(textify);
-    if (shouldExposeReact) {
+    /**
+     * Having to add the || true here - otherwise reactify fails for some
+     * unknown reason!
+     */
+    if (shouldExposeReact || true) {
       jsxBrowserify.require('react-core', {
         expose: 'react-core',
         basedir: sourceDir
