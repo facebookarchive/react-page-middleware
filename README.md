@@ -16,7 +16,7 @@ Build entire pages using React, JSX, and CommonJS.
      yourProject/
       ├── package.json              # Add npm dependencies here.
       ├── server.js                 # Add npm dependencies here.
-      └── src/
+      └── public/
           └── index.jsx             # Requests to index.html routed here.
 
 > List your dependencies in `package.json`:
@@ -43,8 +43,8 @@ Build entire pages using React, JSX, and CommonJS.
     var http = require('http');
 
     var app = connect()
-      .use(reactPageMiddleware.provide({sourceDir: __dirname + '/src', dev: true}))
-      .use(connect['static'](__dirname + '/src'));
+      .use(reactPageMiddleware.provide({sourceDir: __dirname + '/public', dev: true}))
+      .use(connect['static'](__dirname + '/public'));
 
 
 > Run the server and open index.html:
@@ -63,6 +63,4 @@ Build entire pages using React, JSX, and CommonJS.
 - Dynamically packages/compiles your app on each server request.
 
 
-Stay tuned for example app that has all of this setup done for you.
-`react-page-middleware` is primarily just the underlying library for composing
-React-server-rendered pages.
+To get started quickly, simply fork the example project: https://github.com/facebook/react-page
