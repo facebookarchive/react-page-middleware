@@ -14,21 +14,22 @@
  * limitations under the License.
  */
 
-var ESCAPE_LOOKUP = {
-  '"': '\\"',
-  '\n': '\\n',
-  '\\': '\\\\'
+/**
+ * Creates a callback that invokes the `next` function if an error occured
+ * (first arg). Otherwise it will call `cb` with the single arg.
+ * @param {function} cb Function to gracefully wrap.
+ * @param {next} next Continues.
+ * @return {function} Error handling wrapper.
+ */
+var guard = function(next, cb) {
+  return function(err /*rest args*/) {
+    if (err) {
+      next(err);
+    } else {
+      cb.apply(null, Array.prototype.slice.call(arguments, 1));
+    }
+  };
 };
 
-function escaper(match) {
-  return ESCAPE_LOOKUP[match];
-}
 
-var modularizeTextFile = function(text) {
-  var escapedText = text.replace(/["\n\\]/g, escaper);
-  return 'module.exports = "' + escapedText + '"';
-};
-
-modularizeTextFile.supportedExtensions = ['.md', '.txt', '.example'];
-
-module.exports = modularizeTextFile;
+module.exports = guard;

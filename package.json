@@ -1,23 +1,27 @@
 {
   "name": "react-page-middleware",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Connect middleware for rendering pages with React JavaScript Library.",
   "main": "src/index.js",
   "dependencies": {
     "less": "1.4.1",
-    "react-core": "git://github.com/jordwalke/npm-react-core.git",
+    "node-terminal": "0.1.1",
     "async": "0.2.9",
     "browserify": "2.22.0",
     "react-tools": "0.4.0",
-    "reactify": "0.1.4",
     "optimist": "0.6.0",
-    "temp": "0.5.1",
-    "through": "~2.3.4"
+    "node-haste": "git+ssh://git@github.com/facebook/node-haste.git",
+    "contextify": "0.1.6",
+    "source-map": "~0.1.22"
   },
   "author": {
     "name": "Lee Byron",
     "email": "leebyron@fb.com",
     "url": "http://github.com/leebyron"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "repository" : {
+    "type" : "git",
+    "url" : "http://github.com/facebook/react-page-middleware.git"
+  }
 }

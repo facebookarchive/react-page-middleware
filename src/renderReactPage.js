@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 "use strict";
-var fs = require('fs');
-var path = require('path');
+var extractSourceMappedStack = require('./extractSourceMappedStack');
+
 var consts = require('./consts');
 
-function createClientScript(relativeJSPath, props) {
+function createClientScript(rootModuleID, props) {
   return (
     '<script type="text/javascript">' +
-      'var React = require(\'react-core\').React;' +
-      'var Component = require(\'' + relativeJSPath + '\');' +
+      'var React = require(\'React\');' +
+      'var Component = require(\'' + rootModuleID + '\');' +
       'document.addEventListener("DOMContentLoaded", function () {'+
         'React.renderComponent(' +
           'Component('+ JSON.stringify(props) + '),' +
@@ -33,41 +33,59 @@ function createClientScript(relativeJSPath, props) {
   );
 }
 
-function createClientIncludeScript(relativeJSPath) {
+function createClientIncludeScript(originatingRoute) {
   return (
-    '<script ' +
-    'type="text/javascript" src="' +
-    relativeJSPath.replace(consts.PAGE_SRC_EXT_RE, consts.REACT_PACKAGE_EXT) +
-    '"></script><packaged ></packaged>'
+    '<script type="text/javascript" src="' +
+      originatingRoute.normalizedRequestPath
+        .replace(consts.PAGE_EXT_RE, '') +
+      consts.PACKAGE_EXT + '"> ' +
+    '</script><packaged ></packaged>'
   );
 }
 
-function renderReactPage(buildConfig, relModulePath, props, done) {
-  var absPath = path.join(buildConfig.sourceDir, relModulePath);
-  fs.exists(absPath, function(exists) {
-    if (!exists) {
-      return done(null, null, false);
-    }
-    try {
-      require('./RequireJSXExtension.js');
-      var React = require('react-core').React;
-      var component = require(absPath);
-      var instance = component(props);
-      if (!React.isValidComponent(instance)) {
-        throw new Error('module ' + relModulePath + ' is not a React component');
-      }
-      React.renderComponentToString(instance, function(renderedString) {
-        var jsSources = createClientIncludeScript(relModulePath);
-        // Todo: Don't reflow - and root must be at <html>!
-        var jsScripts = createClientScript(relModulePath, props);
-        var page =
-          renderedString.replace('</body></html', jsSources + jsScripts + '</body></html');
-        done(null, page, true);
-      });
-    } catch (err) {
-      done(err, null, null);
-    }
-  });
+function createServerRenderScript(rootModuleID, props) {
+  return (
+    'var React = require(\'React\');' +
+    'var Component = require(\'' + rootModuleID + '\');' +
+    'React.renderComponentToString(' +
+      'Component('+ JSON.stringify(props) + '),' +
+      'function(str) {renderResult = str;} '+
+    ');'
+  );
 }
+
+/**
+ * @param options {
+ *   @property {Route} rout Rout that caused request to arrive here.
+ *   @property {string} rootModuleID Module name (that you would require)
+ *   @property {Object} props Props for initial construction of the instance.
+ *   @property {string} bundleText Preconcatenated bundle text.
+ *   @property {Package} ppackage Package containing all deps of component.
+ *   @property {function} done Invoke when completed.
+ * }
+ */
+var renderReactPage = function(options) {
+  try {
+    var sandboxScript = options.bundleText +
+      createServerRenderScript(options.rootModuleID, options.props);
+    options.timingData && (options.timingData.concatEnd = Date.now());
+    var sandbox = {renderResult: ''};
+    var Contextify = require('contextify');
+    Contextify(sandbox);
+    sandbox.run(sandboxScript);
+    sandbox.dispose();
+    var jsSources = createClientIncludeScript(options.originatingRoute);
+    // Todo: Don't reflow - and root must be at <html>!
+    var jsScripts = createClientScript(options.rootModuleID, options.props);
+    var page = sandbox.renderResult.replace(
+      '</body></html', jsSources + jsScripts + '</body></html'
+    );
+    options.done(null, page);
+  } catch (err) {
+    var sourceMappedStack =
+      extractSourceMappedStack(options.ppackage, err.stack);
+    options.done(new Error(sourceMappedStack));
+  }
+};
 
 module.exports = renderReactPage;

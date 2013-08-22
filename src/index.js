@@ -14,19 +14,45 @@
  * limitations under the License.
  */
 
-var packageReactPageResources = require('./packageReactPageResources');
-var clearRequireModuleCache = require('./clearRequireModuleCache');
+var Packager = require('./Packager');
+
+var consts = require('./consts');
+var convertSourceMap = require('convert-source-map');
+var fs = require('fs');
+var guard = require('./guard');
 var path = require('path');
 var renderReactPage = require('./renderReactPage');
-var transformLessAtPath = require('./transformLessAtPath');
 var url = require('url');
-var consts = require('./consts');
 
-require('./RequireJSXExtension.js');
+var Chart = require('./Chart');
+
+var devBlock = function(buildConfig) {
+  return '__DEV__ = ' + (buildConfig.dev ? ' true;\n' : 'false;\n');
+};
+
+var JS_TYPE = 'application/javascript';
+var HTML_TYPE = 'text/html';
+
+var merge = function(one, two) {
+  var ret = {};
+  for (var key in one) {
+    ret[key] = one[key];
+  }
+  for (key in two) {
+    ret[key] = two[key];
+  }
+  return ret;
+};
 
 /**
- * TODO: Shouldn't we be calling next here, if we want to allow something like a
- * gzip plugin?
+ * Bundle the require implementation
+ */
+var REQUIRE_RUNTIME_PATH = __dirname + '/../polyfill/require.js';
+var REQUIRE_RUNTIME = fs.readFileSync(REQUIRE_RUNTIME_PATH, 'utf8');
+
+/**
+ * TODO: We may need to call next here, if we want to allow something like a
+ * gzip plugin.
  */
 function send(type, res, str, mtime) {
   res.setHeader('Date', new Date().toUTCString());
@@ -38,63 +64,260 @@ function send(type, res, str, mtime) {
 }
 
 
+/**
+ * TODO: Know when a package already has the require system, and other
+ * dependencies.
+ * @param {Package} ppackage Appends module system etc.
+ * @param {BuildConfig} buildConfig Options for building.
+ */
+var appendPackagePrereqs = function(ppackage, buildConfig) {
+  var devStr = devBlock(buildConfig);
+  ppackage.unshift(REQUIRE_RUNTIME_PATH, REQUIRE_RUNTIME, REQUIRE_RUNTIME);
+  ppackage.unshift('/dynamically-generated.js', devStr, devStr);
+};
+
+/**
+ * @param {object} packageOptions Options - see
+ * `Packager.computePackageForAbsolutePath` argument.
+ * @param {object} timingData Mutated timing data.
+ * @param {function} next When completed.
+ */
+var computeBundleForAbsolutePath = function(packageOptions, timingData, next) {
+  if (packageOptions.onComputePackageDone) {
+    next('computeBundleForAbsolutePath provides that handler - not you');
+  }
+  var buildConfig = packageOptions.buildConfig;
+  // Add to the `onComputePackageDone` callback.
+  Packager.computePackageForAbsolutePath(merge(packageOptions, {
+    onComputePackageDone: guard(next, function(rootModuleID, ppackage) {
+      appendPackagePrereqs(ppackage, buildConfig);
+      timingData.findEnd = Date.now();
+      var packageText = ppackage.getSealedText(buildConfig.useSourceMaps);
+      timingData.concatEnd = Date.now();
+      var sourceMapComment =
+        !buildConfig.useSourceMaps ? '' : convertSourceMap.fromObject(
+            ppackage.getSealedSourceMaps().toJSON()
+        ).toComment();
+      timingData.sourceMapEnd = Date.now();
+      var bundleText = !buildConfig.useSourceMaps ?
+        packageText : packageText + sourceMapComment;
+      next(null, rootModuleID, ppackage, bundleText);
+    })
+  }));
+};
+
+
+/**
+ * Handles generating "an entire page" of markup for a given route.
+ *
+ * - First, generates the markup and renders it server side. Will never generate
+ *   source maps, unless an error occurs - then they are generated lazily.
+ * - That markup is sent, then another request is made for the JS. If
+ *   `useSourceMaps` is true in the `buildConfig`, then these will be generated
+ *   at this point - it does not block initial page render since server
+ *   rendering happens without them.
+ *
+ * @param {object} buildConfig Build config options.
+ * @param {Route} route Contains information about the component to render and
+ * what type of resource needs to be generated.
+ * @param {function} next When complete.
+ */
+var handlePageComponentRender = function(buildConfig, route, next) {
+  var timingData = {pageStart: Date.now()};
+  var renderedBundledText = function(rootModuleID, ppackage, bundleText) {
+    var props =  route.additionalProps || {};
+    renderReactPage({
+      originatingRoute: route,
+      rootModuleID: rootModuleID,
+      props: props,
+      bundleText: bundleText,
+      ppackage: ppackage,
+      timingData: timingData,
+      /**
+       * @param {Error} err Error that occured.
+       * @param {string} markup Markup result.
+       */
+      done: function(err, markup) {
+        timingData.markupEnd = Date.now();
+        next(err, markup);
+        timingData.serveEnd = Date.now();
+        if (buildConfig.logTiming) {
+          Chart.logSummary(route.normalizedRequestPath, ppackage.resourceCount());
+          Chart.logPageServeTime(timingData);
+        }
+      }
+    });
+  };
+
+  var onComputeBundle = guard(next, renderedBundledText);
+  var packageOptions = {
+    // Disable sourcemaps for server rendering - we compute them lazily upon an
+    // error.
+    buildConfig: merge(buildConfig, {useSourceMaps: false}),
+    rootModuleAbsolutePath: route.pageComponentAbsolutePath
+  };
+  computeBundleForAbsolutePath(packageOptions, timingData, onComputeBundle);
+};
+
+/**
+ * Handles generating and serving a JS resource that corresponds to a whole-page
+ * component rendering.
+ *
+ * @param {object} buildConfig Build config options.
+ * @param {Route} route Contains information about the component to render and
+ * what type of resource needs to be generated.
+ * @param {function} next When complete.
+ */
+var handlePageComponentBundle = function(buildConfig, route, next) {
+  var timingData = {pageStart: Date.now()};
+  var serveBundle = function(rootModuleID, ppackage, bundleText) {
+    next(null, bundleText);
+    timingData.serveEnd = Date.now();
+    Chart.logBundleServeTime(timingData);
+  };
+  var onComputeBundle = guard(next, serveBundle);
+  var packageOptions = {
+    buildConfig: buildConfig,
+    rootModuleAbsolutePath: route.pageComponentAbsolutePath
+  };
+  computeBundleForAbsolutePath(packageOptions, timingData, onComputeBundle);
+};
+
 exports.provide = function provide(buildConfig) {
-  if (!buildConfig.sourceDir) {
-    throw new Error('Must specify a source dir');
-  }
-  if (buildConfig.requireableText) {
-    require('./RequireTextExtension.js');
-  }
   /**
    * TODO: We can cache sign the module cache with a particular web request ID.
    * We generate a page with request ID x, and include a script
-   * src="main.jx?pageRenderedWithRequestID=x" so we know that we can somehow use
-   * that old module version, saving a module cache invalidatino.
+   * src="main.js?pageRenderedWithRequestID=x" so we know that we can somehow use
+   * that old module version, saving a module cache invalidation.
    */
   return function provideImpl(req, res, next) {
     if (req.method !== 'GET') {
       return next();
     }
-    var relPath = url.parse(req.url).pathname;
+    var requestedPath = url.parse(req.url).pathname;
     var componentRouter = buildConfig.componentRouter || exports.defaultRouter;
-    componentRouter(relPath, req, function(err, desc) {
-      if (err) {
+
+    var serveMarkup = guard(next, send.bind(null, HTML_TYPE, res));
+    var serveBundle = guard(next, send.bind(null, JS_TYPE, res));
+
+    componentRouter(buildConfig, requestedPath, function(err, route) {
+      if (err || !route) {
         return next(err);
       }
-      if (desc) {
-        clearRequireModuleCache(buildConfig.sourceDir);
-        // Todo: Merge the props with standard request params.
-        var relativeModulePath = desc.relativeModulePath;
-        var props = desc.additionalProps || {};
-        renderReactPage(buildConfig, relativeModulePath, props, function(err, markup, exists) {
-          return err ? next(err) :
-            !exists ? next(null, res) : send('text/html', res, markup);
-        });
-      } else if (
-          relPath.match(consts.PACKAGE_EXT_RE) ||
-          relPath.match(consts.REACT_PACKAGE_EXT_RE)) {
-        clearRequireModuleCache(buildConfig.sourceDir);
-        packageReactPageResources(buildConfig, relPath, function(err, js) {
-          return err ? next(err) : send('application/javascript', res, js);
-        });
-      } else if (relPath.match(consts.LESS_EXT_RE)) {
-        var absPath = path.join(buildConfig.sourceDir, relPath);
-        transformLessAtPath(buildConfig, absPath, function(err, css) {
-          return err ? next(err) : send('text/css', res, css);
-        });
-      } else {
-        return next();
-      }
+      return (
+        route.type === 'render' ?
+          handlePageComponentRender(buildConfig, route, serveMarkup) :
+        route.type === 'bundle' ?
+          handlePageComponentBundle(buildConfig, route, serveBundle) :
+        next('unrecognized route')
+      );
     });
   };
 };
 
-exports.defaultRouter = function(relPath, req, next) {
-  if (relPath.match(consts.PAGE_EXT_RE)) {
-    var relReactPath =
-      relPath.replace(consts.PAGE_EXT_RE, consts.PAGE_SRC_EXT);
-    next(null, {relativeModulePath: relReactPath});
+/**
+ * @param {object} buildConfig The same build config object used everywhere.
+ * @return {function} Function that when invoked with the absolute path of a web
+ * request, will return the response that would normally be served over the
+ * network.
+ *
+ *   > require('react-page-middleware')
+ *   >  .compute({buildConfigOptions})
+ *   >    ('path/to/x.html', console.log.bind(console))
+ *
+ *   <  <html><body>...</body></html>
+ *
+ * Can also be used to compute JS bundles.
+ */
+exports.compute = function(buildConfig) {
+  return function(requestedPath, onComputed) {
+    var componentRouter = buildConfig.componentRouter || exports.defaultRouter;
+    componentRouter(buildConfig, requestedPath, function(err, route) {
+      var done = function(err, result) {
+        if (err) {
+          throw err;
+        } else {
+          onComputed(result);
+        }
+      };
+      if (err || !route) {
+        return done(err);
+      }
+      var handler = route.type === 'render' ?  handlePageComponentRender :
+        route.type === 'bundle' ?  handlePageComponentBundle :
+        null;
+      handler(buildConfig, route, done);
+    });
+  };
+};
+
+/**
+ * The default router uses the `buildConfig.pageRouteRoot` as a way to prefix
+ * all component lookups. For example, in the example `server.js`, the
+ * `pageRouteRoot` is set to the `src/pages` directory, so
+ * http://localhost:8080/index.html => src/pages/index.js
+ * http://localhost:8080/about/index.html => src/pages/index.js
+ *
+ * The same convention is applied to bundle paths, since each page has exactly
+ * one bundle. Each generated HTML page automatically pulls in its JS bundle
+ * from the client (you don't worry about this).
+ *
+ * http://localhost:8080/index.bundle => src/pages/index.js(bundled)
+ * http://localhost:8080/about/index.bundle => src/pages/index.js(bundled)
+ *
+ * If no `.bundle` or `.html` is found at the end of the URL, the default router
+ * will append `index.html` to the end, before performing the routing convention
+ * listed above.
+ *
+ * So http://localhost:8080/some/path
+ * normalized => http://localhost:8080/some/path/index.html
+ * rendered   => http://localhost:8080/some/path/index.js
+ * bundled   => http://localhost:8080/some/path/index.bundle
+ */
+var _getDefaultRouteData = function(buildConfig, reqPath) {
+  var hasExtension = consts.HAS_EXT_RE.test(reqPath);
+  var endsInHTML = consts.PAGE_EXT_RE.test(reqPath);
+  var endsInBundle = consts.PACKAGE_EXT_RE.test(reqPath);
+  // default index.html if neither.
+  var shouldRouteToPage = endsInHTML || (!hasExtension && !endsInBundle);
+  var shouldRouteToBundle = endsInBundle;
+  if (reqPath.indexOf('..') !== -1) {
+    return null;
+  }
+  if (shouldRouteToPage) {
+    var normalizedRequestPath =
+      !endsInHTML ? path.join(reqPath, '/index.html') : reqPath;
+    return {
+      type: 'render',
+      normalizedRequestPath: normalizedRequestPath,
+      pageComponentAbsolutePath: path.join(
+        buildConfig.pageRouteRoot || '',
+        // .bundle => .js
+        normalizedRequestPath.replace(consts.PAGE_EXT_RE, consts.PAGE_SRC_EXT).
+          replace(consts.LEADING_SLASH_RE, '')
+      )
+    };
+  } else if (shouldRouteToBundle) {
+    return {
+      type: 'bundle',
+      normalizedRequestPath: reqPath,
+      pageComponentAbsolutePath: path.join(
+        buildConfig.pageRouteRoot,
+        // .bundle => .js
+        reqPath.replace(consts.PACKAGE_EXT_RE, consts.PAGE_SRC_EXT).
+        replace(consts.LEADING_SLASH_RE, '')
+      )
+    };
   } else {
-    return next(null, null);
+    return null;
+  }
+};
+
+exports.defaultRouter = function(buildConfig, reqPath, next) {
+  if (!buildConfig.pageRouteRoot) {
+    return next('Must specify default router root');
+  } else {
+    var defaultRouter =  _getDefaultRouteData(buildConfig, reqPath);
+    return next(null, defaultRouter);
   }
 };
