@@ -22,11 +22,13 @@ function createClientScript(rootModuleID, props) {
   return (
     '<script type="text/javascript">' +
       'var React = require(\'React\');' +
+      'var ReactMount = require(\'ReactMount\');' +
       'var Component = require(\'' + rootModuleID + '\');' +
+      'ReactMount.allowFullPageRender = true;' +
       'document.addEventListener("DOMContentLoaded", function () {'+
         'React.renderComponent(' +
           'Component('+ JSON.stringify(props) + '),' +
-          'document.body' +
+          'document' +
         ');' +
       '});' +
     '</script>'
