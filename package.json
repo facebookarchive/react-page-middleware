@@ -20,7 +20,7 @@
     "email": "leebyron@fb.com",
     "url": "http://github.com/leebyron"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository" : {
     "type" : "git",
     "url" : "http://github.com/facebook/react-page-middleware.git"
