@@ -44,6 +44,16 @@ var merge = function(one, two) {
   return ret;
 };
 
+var validateBuildConfig = function(buildConfig) {
+  var jsSourcePaths = buildConfig.jsSourcePaths;
+  for (var i = 0; i < jsSourcePaths.length; i++) {
+    var searchPath = jsSourcePaths[i];
+    if (!fs.existsSync(searchPath)) {
+      throw new Error('ERROR: Search Path:' + searchPath + ' does not exist.');
+    }
+  }
+};
+
 /**
  * Bundle the require implementation
  */
@@ -186,6 +196,7 @@ var handlePageComponentBundle = function(buildConfig, route, next) {
 };
 
 exports.provide = function provide(buildConfig) {
+  validateBuildConfig(buildConfig);
   /**
    * TODO: We can cache sign the module cache with a particular web request ID.
    * We generate a page with request ID x, and include a script
@@ -232,7 +243,11 @@ exports.provide = function provide(buildConfig) {
  * Can also be used to compute JS bundles.
  */
 exports.compute = function(buildConfig) {
+  validateBuildConfig(buildConfig);
   return function(requestedPath, onComputed) {
+    if (!requestedPath) {
+      throw new Error('Must supply file to compute build from:');
+    }
     var componentRouter = buildConfig.componentRouter || exports.defaultRouter;
     componentRouter(buildConfig, requestedPath, function(err, route) {
       var done = function(err, result) {
