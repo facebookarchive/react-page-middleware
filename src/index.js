@@ -173,7 +173,9 @@ var handlePageComponentBundle = function(buildConfig, route, next) {
   var serveBundle = function(rootModuleID, ppackage, bundleText) {
     next(null, bundleText);
     timingData.serveEnd = Date.now();
-    Chart.logBundleServeTime(timingData);
+    if (buildConfig.logTiming) {
+      Chart.logBundleServeTime(timingData);
+    }
   };
   var onComputeBundle = guard(next, serveBundle);
   var packageOptions = {
