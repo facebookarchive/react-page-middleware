@@ -10,7 +10,7 @@
     "browserify": "2.22.0",
     "react-tools": "0.4.0",
     "optimist": "0.6.0",
-    "node-haste": "git+ssh://git@github.com/facebook/node-haste.git",
+    "node-haste": "git://github.com/facebook/node-haste.git",
     "contextify": "0.1.6",
     "source-map": "~0.1.22",
     "convert-source-map": "0.2.6"
