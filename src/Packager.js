@@ -18,16 +18,19 @@
 /**
  * Using Node-Haste.
  */
+var BrowserShimLoader = require('./BrowserShimLoader');
 var Haste = require('node-haste/lib/Haste');
 var HasteDependencyLoader = require('node-haste/lib/HasteDependencyLoader');
 var Modularizer = require('./Modularizer');
 var Package = require('./Package');
 var ProjectConfigurationLoader = require('node-haste/lib/loader/ProjectConfigurationLoader');
 var ResourceMap = require('node-haste/lib/ResourceMap');
+var SymbolicLinkFinder = require('./SymbolicLinkFinder');
 
 var async = require('async');
 var fs = require('fs');
 var hasteLoaders = require('node-haste/lib/loaders');
+var path = require('path');
 var transform = require('react-tools/vendor/fbtransform/lib/transform').transform;
 var visitors = require('react-tools/vendor/fbtransform/visitors').transformVisitors;
 
@@ -36,61 +39,113 @@ var transformCache = {};
 var transformTimes = {};
 
 var resourceMap = new ResourceMap();
+
 var getResourceMapInstance = function() {
   return resourceMap;
 };
 var hasteInstance;
 
-/**
- * Fast startsWith implementation.
- */
-var startsWith = function(str, searchString) {
-  if (str.length < searchString.length) {
-    return false;
-  }
-  for (var i = 0; i < searchString.length; i++) {
-    if (str[i] !== searchString[i]) {
-      return false;
-    }
-  }
-  return true;
-};
-
-var AUTO_BLACKLIST = ['.DS_Store', '.git', '.module-cache'];
-
-var replaceDot = function(str) {
+var prepareForRE = function(str) {
   return str.replace(/\./g, function() {
     return '\\.';  // escape the dots.
   });
 };
 
-var AUTO_BLACKLIST_RE =
-  new RegExp('(' +
-    AUTO_BLACKLIST.map(function(itm) {
-      return replaceDot(itm);
-    }).join('|') +
-  ')');
+/**
+ * These directories show up in various places - they are never good to bundle
+ * in a browser package.
+ */
+var BLACKLIST_EXTS = [
+  '.DS_Store',
+  '.git',
+  '.module-cache'
+].map(function(ext) {
+  return prepareForRE(ext + '$');
+});
 
 /**
- * In general, we'll never permit node_modules to be packaged up, unless you
- * whitelist them, and even then we will only whitelist one node_modules level.
- * This just helps to avoid accidentally packaging something huge.
- * /Users/you/github/react-page/node_modules/whitelisted/thing.js
- * /Users/you/github/react-page/node_modules/whitelisted/node_modules
- * \---------------------------------------------------/
- * Even if thing.js is whitelisted, whitelisted/node_modules/* will not be.
- *
- * We'll search every whitelisted search root to see if this path falls
- * somewhere under that search root without an additional /node_modules/ - if so
- * return true.
+ * These are known to simply be tools of `react-page`, not the app that you wish
+ * to package.
  */
-var isWhitelistedUnderSearchPaths = function(path, jsSourcePaths) {
-  for (var i = 0; i < jsSourcePaths.length; i++) {
-    var searchRoot = jsSourcePaths[i];
-    if (startsWith(path, searchRoot) &&
-      !path.substr(searchRoot.length).match(/\/node_modules\//g)) {
-      return true;
-    }
+var REACT_PAGE_DEPENDENCIES = [
+  'contextify',
+  'optimist',
+  'connect',
+  'markdown',
+  'react-tools/vendor',
+  'react-tools/node_modules'
+];
+
+// Everything from the react-page-middleware tree except browser-builtins.
+var BLACKLIST_MIDDLEWARE_DEPENDENCIES = [
+  'src',
+  'polyfill',
+  path.join('node_modules', 'node-terminal'),
+  path.join('node_modules', 'browserify'),
+  path.join('node_modules', 'react-tools'),
+  path.join('node_modules', 'node-haste'),
+  path.join('node_modules', 'convert-source-map'),
+  path.join('node_modules', 'async'),
+  path.join('node_modules', 'source-map'),
+  path.join('node_modules', 'contextify'),
+  path.join('node_modules', 'optimist')
+];
+
+var BLACKLIST_FILE_EXTS_RE =
+  new RegExp('(' + BLACKLIST_EXTS.join('|') + ')');
+
+var pathRegex = function(paths) {
+  return new RegExp('^(' + paths.join('|') + ')');
+};
+
+var ensureBlacklistsComputed = function(buildConfig) {
+  if (buildConfig._reactPageBlacklistRE && buildConfig._middlewareBlacklistRE) {
+    return;
+  }
+  var reactPageDevDependencyPaths = REACT_PAGE_DEPENDENCIES.map(function(name) {
+    return path.resolve(buildConfig.projectRoot, 'node_modules', name);
+  }).map(prepareForRE);
+
+  buildConfig._reactPageBlacklistRE = pathRegex(reactPageDevDependencyPaths);
+  // Add browser-builtins to blacklist if we don't need them.
+  var middlewareBlacklist = !buildConfig.useBrowserBuiltins ?
+    BLACKLIST_MIDDLEWARE_DEPENDENCIES.concat('node_modules/browser-builtins/') :
+    BLACKLIST_MIDDLEWARE_DEPENDENCIES;
+  var middlewareBlacklistPaths = middlewareBlacklist.map(function(relPath) {
+    return prepareForRE(
+      path.resolve(
+        buildConfig.projectRoot,
+        'node_modules',
+        'react-page-middleware',
+        relPath
+      )
+    );
+  });
+  buildConfig._middlewareBlacklistRE = pathRegex(middlewareBlacklistPaths);
+};
+
+/**
+ * The `react-page` `projectRoot` is the search root. By default, everything
+ * under it is inherently whitelisted. The user may black list certain
+ * directories under it. They should be careful not to blacklist the
+ * `browser-builtins` in `react-page-middleware`.
+ *
+ * We ignore any directory that is, or is *inside* of a black listed path.
+ *
+ * @param {object} buildConfig React-page build config.
+ * @param {string} path Absolute path in question.
+ * @return {boolean} Whether or not path should be ignored.
+ */
+var shouldStopTraversing = function(buildConfig, path) {
+  ensureBlacklistsComputed(buildConfig);
+  var buildConfigBlacklistRE = buildConfig.blacklistRE;
+  var internalDependenciesBlacklistRE = buildConfig._reactPageBlacklistRE;
+  if (BLACKLIST_FILE_EXTS_RE.test(path) ||
+      buildConfig._middlewareBlacklistRE.test(path) ||
+      internalDependenciesBlacklistRE.test(path) ||
+      buildConfigBlacklistRE && buildConfigBlacklistRE.test(path) ||
+      buildConfig.ignorePaths && buildConfig.ignorePaths(path)) {
+    return true;
   }
   return false;
 };
@@ -102,27 +157,36 @@ var isWhitelistedUnderSearchPaths = function(path, jsSourcePaths) {
  * wasteful, but the built version requires in the form of (./Module) which
  * would fail.  We'll also filter build/modules/ which is a common place for
  * React build output.
+ *
+ * We pass the `projectRoot` to haste as the search directory, but we have to do
+ * some really heavy filtering along the way.
  */
 var getHasteInstance = function(buildConfig) {
   if (hasteInstance) {
     return hasteInstance;
   }
-  var jsSourcePaths = buildConfig.jsSourcePaths;
-  var loaders = [
-    new hasteLoaders.JSLoader({    // JS files
-      extractSpecialRequires: true // support for requireLazy, requireDynamic
+  var loaders = buildConfig.useBrowserBuiltins ?
+    [new BrowserShimLoader(buildConfig)] : [];
+  loaders = loaders.concat([
+    new hasteLoaders.JSLoader({       // JS files
+      extractSpecialRequires: true    // support for requireLazy, requireDynamic
     }),
-    new hasteLoaders.CSSLoader({}), // CSS files
-    new ProjectConfigurationLoader() // package.json files
-  ];
-  var hasteOptions = {
-    ignorePaths: function(path) {
-      return AUTO_BLACKLIST_RE.test(path) ||
-        !isWhitelistedUnderSearchPaths(path, jsSourcePaths) ||
-        buildConfig.ignorePaths && buildConfig.ignorePaths(path);
-    }
-  };
-  return new Haste(loaders, jsSourcePaths, hasteOptions);
+    new hasteLoaders.ImageLoader({}), // Images too.
+    new hasteLoaders.CSSLoader({}),   // CSS files
+    new ProjectConfigurationLoader()  // package.json files
+  ]);
+  var ext = {};
+  loaders.forEach(function(loader) {
+    loader.getExtensions().forEach(function(e) {
+      ext[e] = true;
+    });
+  });
+  var finder = new SymbolicLinkFinder({
+    scanDirs: [buildConfig.projectRoot],
+    extensions: Object.keys(ext),
+    ignore: shouldStopTraversing.bind(null, buildConfig)
+  });
+  return new Haste(loaders, [buildConfig.projectRoot], {finder: finder});
 };
 
 /**

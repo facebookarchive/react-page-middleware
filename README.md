@@ -26,18 +26,20 @@ If you want to get started with server rendered React apps, go directly to
 > Let npm do all the installing - just create a directory structure anywhere as
 > follows:
 
-     yourProject/
-      ├── package.json       # Add npm dependencies here.
-      ├── server.js
-      └── src/
-          └── pages/         # Configure the page root using pageRouteRoot
-              └── index.jsx  # Requests to index.html routed here.
+    yourProject/
+     ├── package.json              # Add npm dependencies here.
+     ├── server.js                 # Start web server with `node server.js`
+     └── src                       # All your application JS.
+         ├── index.js              # localhost:8080/index.html routed here
+         └── pages                 # Configure the page root using pageRouteRoot
+             └── about.js          # localhost:8080/about.html
 
 > List your dependencies in `package.json`:
 
     // Shows how to depend on bleeding edge versions. One niceness of
     // `react-page-middleware`, is depending on the main React repo as
-    // require('React');
+    // `require('React')` Not all JS packagers understand the pure git repo for
+    // React.
     "dependencies": {
       "React": "git://github.com/facebook/react.git",
       "react-page-middleware": "git://github.com/facebook/react-page-middleware.git",
@@ -54,16 +56,15 @@ If you want to get started with server rendered React apps, go directly to
 > proper directory search paths and routing paths.
 
     var reactMiddleware = require('react-page-middleware');
-    var PAGES_DIR = path.join(__dirname, 'src/pages');
     var REACT_LOCATION = __dirname + '/node_modules/react-tools/src';
-    var SEARCH_PATHS = [__dirname, REACT_LOCATION];
+    var ROOT_DIR = __dirname;
     var app = connect()
       .use(reactMiddleware.provide({
         logTiming: true,
-        defaultRouterRoot: PAGES_DIR,           // URLs based in this directory
-        useSourceMaps: true,                    // Generate client source maps.
-        jsSourcePaths: SEARCH_PATHS,            // Search for sources from
-        ignorePaths: function(p) {              // Additional filtering
+        pageRouteRoot: ROOT_DIR,           // URLs based in this directory
+        useSourceMaps: true,                // Generate client source maps.
+        projectRoot: ROOT_DIR,          // Search for sources from
+        ignorePaths: function(p) {          // Additional filtering
           return p.indexOf('__tests__') !== -1;
         }
       }))

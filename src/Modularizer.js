@@ -35,7 +35,7 @@ var DEFINE_MODULE_REPLACE_RE = /_moduleName_|_code_/g;
  * Only do the lookup if the name has a dot in it - providesModule don't need
  * any static rewriting of module names. Handles require('./something/path.js');
  */
-var REL_REQUIRE_STMT = /require\(['"]([\.\/0-9A-Z_$]*)['"]\)/gi;
+var REL_REQUIRE_STMT = /require\(['"]([\.\/0-9A-Z_$\-]*)['"]\)/gi;
 
 
 var Modularizer = {

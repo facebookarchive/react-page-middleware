@@ -15,6 +15,7 @@
  */
 
 var Packager = require('./Packager');
+var Modularizer = require('./Modularizer');
 
 var consts = require('./consts');
 var convertSourceMap = require('convert-source-map');
@@ -45,20 +46,42 @@ var merge = function(one, two) {
 };
 
 var validateBuildConfig = function(buildConfig) {
-  var jsSourcePaths = buildConfig.jsSourcePaths;
-  for (var i = 0; i < jsSourcePaths.length; i++) {
-    var searchPath = jsSourcePaths[i];
-    if (!fs.existsSync(searchPath)) {
-      throw new Error('ERROR: Search Path:' + searchPath + ' does not exist.');
-    }
+  var middlewarePath =
+    path.resolve(buildConfig.projectRoot, 'node_modules', 'react-page-middleware');
+  var browserBuiltinsPath =
+    path.resolve(middlewarePath, 'node_modules', 'browser-builtins');
+  if (buildConfig.useBrowserBuiltins && buildConfig.blacklistRE &&
+    buildConfig.blacklistRE.test(browserBuiltinsPath)) {
+    throw new Error(
+      'You have blacklisted the browser builtins directory (' +
+      browserBuiltinsPath + ')' +
+      ' but you have set `useBrowserBuiltins` to be true');
+  }
+  // Substring/indexOf is actually a flawed way to infer folder hierarchy!
+  if (buildConfig.pageRouteRoot.indexOf(buildConfig.projectRoot) !== 0) {
+    throw new Error('pageRouteRoot must be prefix of projectRoot');
+  }
+  if (!fs.existsSync(buildConfig.projectRoot)) {
+    throw new Error('ERROR: No root:' + buildConfig.projectRoot);
   }
 };
 
 /**
  * Bundle the require implementation
  */
-var REQUIRE_RUNTIME_PATH = __dirname + '/../polyfill/require.js';
+var REQUIRE_RUNTIME_PATH = path.resolve(__dirname, '..', 'polyfill/require.js');
+var PROCESS_RUNTIME_PATH = path.resolve(
+  __dirname,
+  '..',
+  'node_modules',
+  'browser-builtins',
+  'builtin',
+  'process.js'
+);
 var REQUIRE_RUNTIME = fs.readFileSync(REQUIRE_RUNTIME_PATH, 'utf8');
+var PROCESS_RUNTIME =
+  Modularizer.modularize('process', fs.readFileSync(PROCESS_RUNTIME_PATH, 'utf8')) +
+  ' process = require("process");'; // Make it global.
 
 /**
  * TODO: We may need to call next here, if we want to allow something like a
@@ -82,6 +105,9 @@ function send(type, res, str, mtime) {
  */
 var appendPackagePrereqs = function(ppackage, buildConfig) {
   var devStr = devBlock(buildConfig);
+  if (buildConfig.useBrowserBuiltins) {
+    ppackage.unshift(PROCESS_RUNTIME_PATH, PROCESS_RUNTIME, PROCESS_RUNTIME);
+  }
   ppackage.unshift(REQUIRE_RUNTIME_PATH, REQUIRE_RUNTIME, REQUIRE_RUNTIME);
   ppackage.unshift('/dynamically-generated.js', devStr, devStr);
 };
@@ -218,7 +244,7 @@ exports.provide = function provide(buildConfig) {
         return next(err);
       }
       return (
-        route.type === 'render' ?
+        route.type === 'htmlRequest' ?
           handlePageComponentRender(buildConfig, route, serveMarkup) :
         route.type === 'bundle' ?
           handlePageComponentBundle(buildConfig, route, serveBundle) :
@@ -260,7 +286,7 @@ exports.compute = function(buildConfig) {
       if (err || !route) {
         return done(err);
       }
-      var handler = route.type === 'render' ?  handlePageComponentRender :
+      var handler = route.type === 'htmlRequest' ?  handlePageComponentRender :
         route.type === 'bundle' ?  handlePageComponentBundle :
         null;
       handler(buildConfig, route, done);
@@ -305,7 +331,7 @@ var _getDefaultRouteData = function(buildConfig, reqPath) {
     var normalizedRequestPath =
       !endsInHTML ? path.join(reqPath, '/index.html') : reqPath;
     return {
-      type: 'render',
+      type: 'htmlRequest',
       normalizedRequestPath: normalizedRequestPath,
       pageComponentAbsolutePath: path.join(
         buildConfig.pageRouteRoot || '',
