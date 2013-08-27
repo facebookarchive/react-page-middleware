@@ -19,11 +19,15 @@
  * Using Node-Haste.
  */
 var BrowserShimLoader = require('./BrowserShimLoader');
+var CSSLoader = require('node-haste/lib/loader/CSSLoader');
 var Haste = require('node-haste/lib/Haste');
 var HasteDependencyLoader = require('node-haste/lib/HasteDependencyLoader');
+var ImageLoader = require('node-haste/lib/loader/ImageLoader');
+var JSLoader = require('node-haste/lib/loader/JSLoader');
 var Modularizer = require('./Modularizer');
 var Package = require('./Package');
 var ProjectConfigurationLoader = require('node-haste/lib/loader/ProjectConfigurationLoader');
+var ResourceLoader = require('node-haste/lib/loader/ResourceLoader');
 var ResourceMap = require('node-haste/lib/ResourceMap');
 var SymbolicLinkFinder = require('./SymbolicLinkFinder');
 
@@ -150,6 +154,23 @@ var shouldStopTraversing = function(buildConfig, path) {
   return false;
 };
 
+
+/**
+ * Set of loaders that we accept will load resources that JS modules are capable
+ * of depending on.
+ */
+var validJSModuleDependencyLoaders = [
+  JSLoader,
+  CSSLoader,
+  ImageLoader
+];
+
+var validJSDependencyTypeStrings =
+  ResourceLoader.getTypesOfLoaderClasses(validJSModuleDependencyLoaders);
+
+var allProjectLoaders =
+  validJSModuleDependencyLoaders.concat([ProjectConfigurationLoader]);
+
 /**
  * We must make sure to add react-page-middleware to the ignored search paths,
  * otherwise a prebuilt version of React (which still has @providesModule React)
@@ -165,25 +186,21 @@ var getHasteInstance = function(buildConfig) {
   if (hasteInstance) {
     return hasteInstance;
   }
-  var loaders = buildConfig.useBrowserBuiltins ?
-    [new BrowserShimLoader(buildConfig)] : [];
-  loaders = loaders.concat([
-    new hasteLoaders.JSLoader({       // JS files
-      extractSpecialRequires: true    // support for requireLazy, requireDynamic
-    }),
-    new hasteLoaders.ImageLoader({}), // Images too.
-    new hasteLoaders.CSSLoader({}),   // CSS files
-    new ProjectConfigurationLoader()  // package.json files
-  ]);
-  var ext = {};
-  loaders.forEach(function(loader) {
-    loader.getExtensions().forEach(function(e) {
-      ext[e] = true;
-    });
-  });
+  var browserShimLoader = new BrowserShimLoader(buildConfig);
+  var loaders =
+    (buildConfig.useBrowserBuiltins ? [browserShimLoader] : []).concat([
+      new hasteLoaders.JSLoader({       // JS files
+        extractSpecialRequires: true,   // support for requireLazy etc.
+        validJSModuleDependencyLoaders: validJSModuleDependencyLoaders
+      }),
+      new hasteLoaders.ImageLoader({}), // Images too.
+      new hasteLoaders.CSSLoader({}),   // CSS files
+      new ProjectConfigurationLoader()  // package.json files
+    ]);
+
   var finder = new SymbolicLinkFinder({
     scanDirs: [buildConfig.projectRoot],
-    extensions: Object.keys(ext),
+    extensions: ResourceLoader.getExtensionsOfLoaderClasses(allProjectLoaders),
     ignore: shouldStopTraversing.bind(null, buildConfig)
   });
   return new Haste(loaders, [buildConfig.projectRoot], {finder: finder});
@@ -194,8 +211,9 @@ var getHasteInstance = function(buildConfig) {
  * `define()`.
  */
 var transformModuleImpl = function(mod, modName, rawCode) {
+  // TODO: Use browserify Streams API here to transform various sources!
   var resolveModule = function(requiredName) {
-    return mod.getModuleIDByOrigin(requiredName);
+    return mod.getModuleIDByOrigin('JS', requiredName);
   };
   var transformResult = transform(visitors.react, rawCode);
   var transformedCode = fixReactTransform(transformResult.code);
@@ -266,6 +284,7 @@ var computePackageForAbsolutePath = function(options) {
     };
 
   HasteDependencyLoader.loadOrderedDependencies({
+    resourceTypeStrings: validJSDependencyTypeStrings,
     rootJSPath: options.rootModuleAbsolutePath,
     haste: getHasteInstance(options.buildConfig),
     resourceMap: getResourceMapInstance(options.buildConfig),
