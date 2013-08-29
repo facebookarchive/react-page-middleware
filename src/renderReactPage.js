@@ -77,8 +77,18 @@ var renderReactPage = function(options) {
     sandbox.run(sandboxScript);
     sandbox.dispose();
     var jsSources = createClientIncludeScript(options.originatingRoute);
+
     // Todo: Don't reflow - and root must be at <html>!
     var jsScripts = createClientScript(options.rootModuleID, options.props);
+
+    if (sandbox.renderResult.indexOf('</body></html') === -1) {
+      throw new Error(
+        'Could not figure out where to place react-page <script> tags.' +
+        ' Please ensure that there is nothing between </body> and </html>' +
+        ' in your app.'
+      );
+    }
+
     var page = sandbox.renderResult.replace(
       '</body></html', jsSources + jsScripts + '</body></html'
     );
