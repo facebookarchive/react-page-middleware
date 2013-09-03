@@ -233,13 +233,12 @@ exports.provide = function provide(buildConfig) {
     if (req.method !== 'GET') {
       return next();
     }
-    var requestedPath = url.parse(req.url).pathname;
     var componentRouter = buildConfig.componentRouter || exports.defaultRouter;
 
     var serveMarkup = guard(next, send.bind(null, HTML_TYPE, res));
     var serveBundle = guard(next, send.bind(null, JS_TYPE, res));
 
-    componentRouter(buildConfig, requestedPath, function(err, route) {
+    componentRouter(buildConfig, req.url, function(err, route) {
       if (err || !route) {
         return next(err);
       }
@@ -274,8 +273,9 @@ exports.compute = function(buildConfig) {
     if (!requestedPath) {
       throw new Error('Must supply file to compute build from:');
     }
+    var mockRequestedURL = 'http://localhost:8080/' + requestedPath;
     var componentRouter = buildConfig.componentRouter || exports.defaultRouter;
-    componentRouter(buildConfig, requestedPath, function(err, route) {
+    componentRouter(buildConfig, mockRequestedURL, function(err, route) {
       var done = function(err, result) {
         if (err) {
           throw err;
@@ -317,7 +317,8 @@ exports.compute = function(buildConfig) {
  * rendered   => http://localhost:8080/some/path/index.js
  * bundled   => http://localhost:8080/some/path/index.bundle
  */
-var _getDefaultRouteData = function(buildConfig, reqPath) {
+var _getDefaultRouteData = function(buildConfig, reqURL) {
+  var reqPath = url.parse(reqURL).pathname;
   var hasExtension = consts.HAS_EXT_RE.test(reqPath);
   var endsInHTML = consts.PAGE_EXT_RE.test(reqPath);
   var endsInBundle = consts.PACKAGE_EXT_RE.test(reqPath);
@@ -327,6 +328,9 @@ var _getDefaultRouteData = function(buildConfig, reqPath) {
   if (reqPath.indexOf('..') !== -1) {
     return null;
   }
+  var additionalProps = {
+    requestParams: url.parse(reqURL, true).query
+  };
   if (shouldRouteToPage) {
     var normalizedRequestPath =
       !endsInHTML ? path.join(reqPath, '/index.html') : reqPath;
@@ -338,7 +342,8 @@ var _getDefaultRouteData = function(buildConfig, reqPath) {
         // .bundle => .js
         normalizedRequestPath.replace(consts.PAGE_EXT_RE, consts.PAGE_SRC_EXT).
           replace(consts.LEADING_SLASH_RE, '')
-      )
+      ),
+      additionalProps: additionalProps
     };
   } else if (shouldRouteToBundle) {
     return {
@@ -349,18 +354,19 @@ var _getDefaultRouteData = function(buildConfig, reqPath) {
         // .bundle => .js
         reqPath.replace(consts.PACKAGE_EXT_RE, consts.PAGE_SRC_EXT).
         replace(consts.LEADING_SLASH_RE, '')
-      )
+      ),
+      additionalProps: additionalProps
     };
   } else {
     return null;
   }
 };
 
-exports.defaultRouter = function(buildConfig, reqPath, next) {
+exports.defaultRouter = function(buildConfig, reqURL, next) {
   if (!buildConfig.pageRouteRoot) {
     return next('Must specify default router root');
   } else {
-    var defaultRouter =  _getDefaultRouteData(buildConfig, reqPath);
+    var defaultRouter =  _getDefaultRouteData(buildConfig, reqURL);
     return next(null, defaultRouter);
   }
 };
