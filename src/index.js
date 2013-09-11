@@ -28,7 +28,7 @@ var url = require('url');
 var Chart = require('./Chart');
 
 var devBlock = function(buildConfig) {
-  return '__DEV__ = ' + (buildConfig.dev ? ' true;\n' : 'false;\n');
+  return '__VERSION__ = 0.44; __DEV__ = ' + (buildConfig.dev ? ' true;\n' : 'false;\n');
 };
 
 var JS_TYPE = 'application/javascript';
@@ -97,6 +97,15 @@ function send(type, res, str, mtime) {
 }
 
 
+var BUG_FIX =
+  "require('ReactMount')." +
+  "prepareEnvironmentForDOM =  function(container) {" +
+    "require('ReactEventEmitter').ensureListening(" +
+      "require('ReactMount').useTouchEvents," +
+      "container.ownerDocument || container" +
+    ");" +
+  "};";
+
 /**
  * TODO: Know when a package already has the require system, and other
  * dependencies.
@@ -110,6 +119,7 @@ var appendPackagePrereqs = function(ppackage, buildConfig) {
   }
   ppackage.unshift(REQUIRE_RUNTIME_PATH, REQUIRE_RUNTIME, REQUIRE_RUNTIME);
   ppackage.unshift('/dynamically-generated.js', devStr, devStr);
+  ppackage.push('/bug-fix.js', BUG_FIX, BUG_FIX);
 };
 
 /**
