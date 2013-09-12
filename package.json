@@ -6,7 +6,8 @@
   "dependencies": {
     "node-terminal": "0.1.1",
     "async": "0.2.9",
-    "react-tools": "0.4.0",
+    "React": "git://github.com/facebook/react.git",
+    "jstransform": "~1.0.0",
     "optimist": "0.6.0",
     "node-haste": "git://github.com/facebook/node-haste.git",
     "contextify": "0.1.6",
