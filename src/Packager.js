@@ -31,8 +31,17 @@ var async = require('async');
 var fs = require('fs');
 var hasteLoaders = require('node-haste/lib/loaders');
 var path = require('path');
-var transform = require('react-tools/vendor/fbtransform/lib/transform').transform;
-var visitors = require('react-tools/vendor/fbtransform/visitors').transformVisitors;
+var transform = require('jstransform').transform;
+
+var reactVisitors = require('react-tools/vendor/fbtransform/visitors').getVisitorsList();
+var es6Classes = require('jstransform/visitors/es6-class-visitors').visitorList;
+var es6RestParameters = require('jstransform/visitors/es6-rest-param-visitors').visitorList;
+var es6ArrowFunctions = require('jstransform/visitors/es6-arrow-function-visitors').visitorList;
+var es6ObjectShortNotation = require('jstransform/visitors/es6-object-short-notation-visitors').visitorList;
+
+var visitorList = reactVisitors.concat(
+  es6Classes, es6RestParameters, es6ArrowFunctions, es6ObjectShortNotation
+);
 
 var originalSourceCache = {};
 var transformCache = {};
@@ -197,7 +206,7 @@ var transformModuleImpl = function(mod, modName, rawCode) {
   var resolveModule = function(requiredName) {
     return mod.getModuleIDByOrigin(requiredName);
   };
-  var transformResult = transform(visitors.react, rawCode);
+  var transformResult = transform(visitorList, rawCode);
   var transformedCode = fixReactTransform(transformResult.code);
   var modularizedCode =
     Modularizer.modularize(modName, transformedCode, resolveModule);
