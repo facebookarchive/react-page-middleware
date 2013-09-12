@@ -551,8 +551,6 @@
   _register('requireDynamic', require);
   _register('requireLazy', requireLazy);
 
-  define.amd = {};
-
   global.define = define;
   global.require = require;
   global.requireDynamic = require;
