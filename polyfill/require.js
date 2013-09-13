@@ -332,7 +332,7 @@
 
     // Non-standard: we allow modules to be undefined. This is designed for
     // temporary modules.
-    var canceler = { cancel: _undefine.bind(this, id) };
+    var canceler = { cancel: function(){ _undefine(id); } };
 
     var record = modulesMap[id];
 
@@ -551,7 +551,6 @@
   _register('requireDynamic', require);
   _register('requireLazy', requireLazy);
 
-  global.define = define;
   global.require = require;
   global.requireDynamic = require;
   global.requireLazy = requireLazy;

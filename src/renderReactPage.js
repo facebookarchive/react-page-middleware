@@ -21,16 +21,16 @@ var consts = require('./consts');
 function createClientScript(rootModuleID, props) {
   return (
     '<script type="text/javascript">' +
+      'require(\'es5-shim/es5-shim.js\');' +
+      'require(\'es5-shim/es5-sham.js\');' +
       'var React = require(\'React\');' +
       'var ReactMount = require(\'ReactMount\');' +
       'var Component = require(\'' + rootModuleID + '\');' +
       'ReactMount.allowFullPageRender = true;' +
-      'document.addEventListener("DOMContentLoaded", function () {'+
-        'React.renderComponent(' +
-          'Component('+ JSON.stringify(props) + '),' +
-          'document' +
-        ');' +
-      '});' +
+      'React.renderComponent(' +
+        'Component('+ JSON.stringify(props) + '),' +
+        'document' +
+      ');' +
     '</script>'
   );
 }

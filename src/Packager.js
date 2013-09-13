@@ -275,6 +275,7 @@ var computePackageForAbsolutePath = function(options) {
     };
 
   HasteDependencyLoader.loadOrderedDependencies({
+    rootDependencies: options.runtimeDependencies,
     rootJSPath: options.rootModuleAbsolutePath,
     haste: getHasteInstance(options.buildConfig),
     resourceMap: getResourceMapInstance(options.buildConfig),

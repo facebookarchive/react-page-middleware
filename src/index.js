@@ -27,6 +27,13 @@ var url = require('url');
 
 var Chart = require('./Chart');
 
+var RUNTIME_DEPENDENCIES = [
+  'es5-shim/es5-shim.js',
+  'es5-shim/es5-sham.js',
+  'React',
+  'ReactMount'
+];
+
 var devBlock = function(buildConfig) {
   return '__VERSION__ = 0.44; __DEV__ = ' + (buildConfig.dev ? ' true;\n' : 'false;\n');
 };
@@ -96,16 +103,6 @@ function send(type, res, str, mtime) {
   res.end(str);
 }
 
-
-var BUG_FIX =
-  "require('ReactMount')." +
-  "prepareEnvironmentForDOM =  function(container) {" +
-    "require('ReactEventEmitter').ensureListening(" +
-      "require('ReactMount').useTouchEvents," +
-      "container.ownerDocument || container" +
-    ");" +
-  "};";
-
 /**
  * TODO: Know when a package already has the require system, and other
  * dependencies.
@@ -119,7 +116,6 @@ var appendPackagePrereqs = function(ppackage, buildConfig) {
   }
   ppackage.unshift(REQUIRE_RUNTIME_PATH, REQUIRE_RUNTIME, REQUIRE_RUNTIME);
   ppackage.unshift('/dynamically-generated.js', devStr, devStr);
-  ppackage.push('/bug-fix.js', BUG_FIX, BUG_FIX);
 };
 
 /**
@@ -226,7 +222,8 @@ var handlePageComponentBundle = function(buildConfig, route, next) {
   var onComputeBundle = guard(next, serveBundle);
   var packageOptions = {
     buildConfig: buildConfig,
-    rootModuleAbsolutePath: route.pageComponentAbsolutePath
+    rootModuleAbsolutePath: route.pageComponentAbsolutePath,
+    runtimeDependencies: RUNTIME_DEPENDENCIES
   };
   computeBundleForAbsolutePath(packageOptions, timingData, onComputeBundle);
 };
