@@ -11,7 +11,6 @@
     "jstransform": "~1.0.0",
     "optimist": "0.6.0",
     "node-haste": "git://github.com/facebook/node-haste.git",
-    "contextify": "0.1.6",
     "source-map": "~0.1.22",
     "convert-source-map": "0.2.6",
     "browser-builtins": "1.0.7"
