@@ -71,28 +71,30 @@ var renderReactPage = function(options) {
     var sandboxScript = options.bundleText +
       createServerRenderScript(options.rootModuleID, options.props);
     options.timingData && (options.timingData.concatEnd = Date.now());
-    var sandbox = {renderResult: ''};
-    var Contextify = require('contextify');
-    Contextify(sandbox);
-    sandbox.run(sandboxScript);
-    sandbox.dispose();
     var jsSources = createClientIncludeScript(options.originatingRoute);
 
     // Todo: Don't reflow - and root must be at <html>!
     var jsScripts = createClientScript(options.rootModuleID, options.props);
 
-    if (sandbox.renderResult.indexOf('</body></html') === -1) {
-      throw new Error(
-        'Could not figure out where to place react-page <script> tags.' +
-        ' Please ensure that there is nothing between </body> and </html>' +
-        ' in your app.'
+    if (options.serverRender) {
+      var vm = require('vm');
+      var sandbox = {renderResult: ''};
+      vm.runInNewContext(sandboxScript, sandbox);
+      if (sandbox.renderResult.indexOf('</body></html') === -1) {
+        throw new Error(
+          'Could not figure out where to place react-page <script> tags.' +
+          ' Please ensure that there is nothing between </body> and </html>' +
+          ' in your app.'
+        );
+      }
+      var page = sandbox.renderResult.replace(
+        '</body></html', jsSources + jsScripts + '</body></html'
       );
+      options.done(null, page);
+    } else {
+      var lazyPage = '<html><head>' + jsSources + jsScripts + '</head><body></body></html>';
+      options.done(null, lazyPage);
     }
-
-    var page = sandbox.renderResult.replace(
-      '</body></html', jsSources + jsScripts + '</body></html'
-    );
-    options.done(null, page);
   } catch (err) {
     var sourceMappedStack =
       extractSourceMappedStack(options.ppackage, err.stack);
@@ -101,3 +103,4 @@ var renderReactPage = function(options) {
 };
 
 module.exports = renderReactPage;
+
