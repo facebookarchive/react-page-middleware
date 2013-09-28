@@ -169,6 +169,7 @@ var handlePageComponentRender = function(buildConfig, route, next) {
   var renderedBundledText = function(rootModuleID, ppackage, bundleText) {
     var props =  route.additionalProps || {};
     renderReactPage({
+      serverRender: buildConfig.serverRender,
       originatingRoute: route,
       rootModuleID: rootModuleID,
       props: props,
