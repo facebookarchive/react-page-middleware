@@ -202,18 +202,25 @@ var getHasteInstance = function(buildConfig) {
  * Replaces relative modules, transforms JSX, and wraps each module in a
  * `define()`.
  */
-var transformModuleImpl = function(mod, modName, rawCode) {
+var transformModuleImpl = function(mod, modName, rawCode, done) {
   var resolveModule = function(requiredName) {
     return mod.getModuleIDByOrigin(requiredName);
   };
-  var transformResult = transform(visitorList, rawCode);
-  var transformedCode = fixReactTransform(transformResult.code);
-  var modularizedCode =
-    Modularizer.modularize(modName, transformedCode, resolveModule);
-  originalSourceCache[modName] = rawCode;
-  transformCache[modName] = modularizedCode;
-  transformTimes[modName] = Date.now();
-  return transformCache[modName];
+  try {
+    var transformResult = transform(visitorList, rawCode);
+    var transformedCode = fixReactTransform(transformResult.code);
+    var modularizedCode =
+      Modularizer.modularize(modName, transformedCode, resolveModule);
+    originalSourceCache[modName] = rawCode;
+    transformCache[modName] = modularizedCode;
+    transformTimes[modName] = Date.now();
+    done(null, transformCache[modName]);
+  } catch (e) {
+    // Original error only includes esprima trace!
+    var parseError =
+      new Error('Syntax Error: ' + mod.path + ' ' + e.toString());
+    done(parseError);
+  }
 };
 
 /**
@@ -232,7 +239,11 @@ function warmCache(orderedModulesObj, modName, done) {
   } else {
     fs.readFile(mod.path, {encoding: 'utf8'}, function(err, contents) {
       var error = err || (!contents && '[ERROR] no content:' +  mod.path);
-      done(error, !error && transformModuleImpl(mod, modName, contents));
+      if (error) {
+        done(error);
+      } else {
+        transformModuleImpl(mod, modName, contents, done);
+      }
     });
   }
 }
