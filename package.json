@@ -8,7 +8,7 @@
     "async": "0.2.9",
     "es5-shim": "~2.1.0",
     "React": "git://github.com/facebook/react.git",
-    "jstransform": "~1.0.0",
+    "jstransform": "~2.0.1",
     "optimist": "0.6.0",
     "node-haste": "git://github.com/facebook/node-haste.git",
     "source-map": "~0.1.22",
