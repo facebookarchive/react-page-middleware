@@ -73,7 +73,8 @@ var findMsg = function(time) {
 };
 
 var getChartColumns = function() {
-  return process.stdout.getWindowSize()[0] - 2 || LOG_WIDTH;
+  return typeof process.stdout.getWindowSize == 'function' &&
+    process.stdout.getWindowSize()[0] - 2 || LOG_WIDTH;
 };
 var logPageServeTime = function(timingData) {
   var pageStart = timingData.pageStart;
