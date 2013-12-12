@@ -203,7 +203,8 @@ var _getDefaultRouteData = function(buildConfig, reqURL) {
   // Normalize localhost/myPage to localhost/myPage/index.html
   var indexNormalizedRequestPath =
     !hasExtension ? path.join(reqPath, '/index.html') : reqPath;
-  var allTagsAndExtensionsMatch = reqPath.match(consts.ALL_TAGS_AND_EXT_RE);
+  var allTagsAndExtensionsMatch =
+    indexNormalizedRequestPath.match(consts.ALL_TAGS_AND_EXT_RE);
   if (!allTagsAndExtensionsMatch) {
     return null;
   }
