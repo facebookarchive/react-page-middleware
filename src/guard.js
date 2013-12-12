@@ -24,7 +24,7 @@
 var guard = function(next, cb) {
   return function(err /*rest args*/) {
     if (err) {
-      next(err);
+      next(new Error(err));
     } else {
       cb.apply(null, Array.prototype.slice.call(arguments, 1));
     }

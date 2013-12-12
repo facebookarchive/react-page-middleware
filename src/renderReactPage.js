@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 "use strict";
-var extractSourceMappedStack = require('./extractSourceMappedStack');
+
+var TimingData = require('./TimingData');
 
 var consts = require('./consts');
+var extractSourceMappedStack = require('./extractSourceMappedStack');
 
 function createClientScript(rootModuleID, props) {
   return (
@@ -35,12 +37,14 @@ function createClientScript(rootModuleID, props) {
   );
 }
 
-function createClientIncludeScript(originatingRoute) {
+function createClientIncludeScript(indexNormalizedRequestPath) {
   return (
     '<script type="text/javascript" src="' +
-      originatingRoute.normalizedRequestPath
-        .replace(consts.PAGE_EXT_RE, '') +
-      consts.PACKAGE_EXT + '"> ' +
+      indexNormalizedRequestPath
+        .replace(consts.PAGE_EXT_RE, '') + '.' +
+        consts.INCLUDE_REQUIRE_TAG + '.' +   // Include require system
+        consts.RUN_MODULE_TAG +              // And run the bundle
+      consts.BUNDLE_EXT + '"> ' +
     '</script><packaged ></packaged>'
   );
 }
@@ -70,8 +74,8 @@ var renderReactPage = function(options) {
   try {
     var sandboxScript = options.bundleText +
       createServerRenderScript(options.rootModuleID, options.props);
-    options.timingData && (options.timingData.concatEnd = Date.now());
-    var jsSources = createClientIncludeScript(options.originatingRoute);
+    TimingData.data.concatEnd = Date.now();
+    var jsSources = createClientIncludeScript(options.indexNormalizedRequestPath);
 
     // Todo: Don't reflow - and root must be at <html>!
     var jsScripts = createClientScript(options.rootModuleID, options.props);

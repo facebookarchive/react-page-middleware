@@ -121,7 +121,7 @@ var logBundleServeTime = function(timingData) {
       bad: sourceMapTime ? 100 : 10
     }
   ];
-  if (sourceMapTime) {
+  if (sourceMapTime && sourceMapTime > 2) {
     datas.push({
       text: 'serialize srcmap ' + sourceMapTime + 'ms',
       value: sourceMapTime,

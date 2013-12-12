@@ -21,7 +21,7 @@ var SourceMapGenerator = require('source-map').SourceMapGenerator;
  * Stateful class, that has an odd "finalized" state, where no more resources
  * may be added to the package. The only reason for this, is that the
  * `ResourceMap` makes it difficult to prepend content to the package, or adjust
- * previously appended mappings. So this class accomodates that by forcing users
+ * previously appended mappings. So this class accommodates that by forcing users
  * of a `Package` to organize their code in a way that multiple people may add
  * resources to a package, but only one should "seal" the package, and extract
  * the source maps/text from it.
