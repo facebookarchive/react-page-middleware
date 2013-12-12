@@ -18,10 +18,29 @@
 module.exports = {
   LEADING_SLASH_RE: /^\//,
   INDEX_JS_SUFFIX_RE: /\/index\.js[^\/]*$/,
-  PACKAGE_EXT: '.bundle',
+
   HAS_EXT_RE: /\.[^\/]*$/,
-  PACKAGE_EXT_RE: /\.bundle[^\/]*$/,
-  PAGE_SRC_EXT: '.js',
-  PAGE_SRC_EXT_RE: /\.js[^\/]*$/,
-  PAGE_EXT_RE: /\.html[^\/]*$/
+  // Captures the set of tags and extension in parens ()
+  ALL_TAGS_AND_EXT_RE: /\.([^\/]+)$/,
+
+
+  // URL bundle-routing scheme:
+  // localhost:8080/path/to/Root.x.y.z.a.b.c.d.e.f.g.bundle
+  //                             \----- tags ------/ \type/
+  // Route types:
+  PAGE_EXT_RE: /\.html$/,
+
+  BUNDLE_EXT: '.bundle',
+  BUNDLE_EXT_RE: /\.bundle$/,
+
+  MAP_EXT: '.map',
+  MAP_EXT_RE: /\.map$/,
+
+  // Route tags:
+  INCLUDE_REQUIRE_TAG: 'includeRequire',
+  RUN_MODULE_TAG: 'runModule',
+
+  // Misc:
+  JS_SRC_EXT: '.js',
+  JS_SRC_EXT_RE: /\.js[^\/]*$/
 };

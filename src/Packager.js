@@ -238,7 +238,7 @@ function warmCache(orderedModulesObj, modName, done) {
     done(null, transformCache[modName]);
   } else {
     fs.readFile(mod.path, {encoding: 'utf8'}, function(err, contents) {
-      var error = err || (!contents && '[ERROR] no content:' +  mod.path);
+      var error = err || (!contents ? new Error('[ERROR] no content:' +  mod.path) : null);
       if (error) {
         done(error);
       } else {
@@ -251,7 +251,7 @@ function warmCache(orderedModulesObj, modName, done) {
 /**
  * @param {object} Options - including callback for completion.
  */
-var computePackageForAbsolutePath = function(options) {
+var computePackageForAbsolutePath = function(options, onComputePackageDone) {
   /**
    * @param {string} moduleName Resolved module name, corresponding to the
    * absolute path provided as `options.rootModuleAbsolutePath`.
@@ -261,11 +261,13 @@ var computePackageForAbsolutePath = function(options) {
   var onModuleDependenciesLoaded =
     function(err, resolvedRootModuleID, orderedModulesObj) {
       if (err) {
-        return options.onComputePackageDone(err);
+        return onComputePackageDone(err);
       }
       var moduleNames = Object.keys(orderedModulesObj);
       var onWarmed = function(err) {
-        if (err) {return options.onComputePackageDone(err);}
+        if (err) {
+          return onComputePackageDone(err);
+        }
         var ppackage = new Package();
         var modCount = 0;
         moduleNames.forEach(function(modName) {
@@ -276,7 +278,7 @@ var computePackageForAbsolutePath = function(options) {
         });
         var packageErr = !modCount &&
             new Error('No modules for:' + options.rootModuleAbsolutePath);
-        options.onComputePackageDone(packageErr, resolvedRootModuleID, ppackage);
+        onComputePackageDone(packageErr, resolvedRootModuleID, ppackage);
       };
       async.each(
         moduleNames,
