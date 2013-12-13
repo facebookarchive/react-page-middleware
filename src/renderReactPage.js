@@ -86,7 +86,7 @@ var renderReactPage = function(options) {
     if (options.serverRender) {
       try {
         var vm = require('vm');
-        var sandbox = {renderResult: ''};
+        var sandbox = {renderResult: '', console: console};
         vm.runInNewContext(sandboxScript, sandbox);
         if (sandbox.renderResult.indexOf('</body></html') === -1) {
           throw new Error(
