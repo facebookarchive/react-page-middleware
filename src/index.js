@@ -53,10 +53,6 @@ var validateBuildConfig = function(buildConfig) {
   }
 };
 
-function byteCount(s) {
-  return encodeURI(s).split(/%..|./).length - 1;
-}
-
 /**
  * TODO: We may need to call next here, if we want to allow something like a
  * gzip plugin.
@@ -65,7 +61,8 @@ function send(type, res, str, mtime) {
   res.setHeader('Date', new Date().toUTCString());
   // Always assume we had compiled something that may have changed.
   res.setHeader('Last-Modified', mtime || (new Date()).toUTCString());
-  res.setHeader('Content-Length', byteCount(str));
+  // Would like to set the content length but it isn't clear how to do that
+  // efficiently with JS strings (string length is not byte length!).
   res.setHeader('Content-Type', type);
   res.end(str);
 }
@@ -91,12 +88,12 @@ exports.provide = function provide(buildConfig) {
       if (err || !route) {
         return next(err);
       }
-      if (!route.contentType || !route.rootModuleAbsolutePath) {
-        return next(new Error('Router must provide contentType and rootModuleAbsolutePath'));
+      if (!route.contentType || !route.rootModulePath) {
+        return next(new Error('Router must provide contentType and rootModulePath'));
       }
       var serveResult = guard(next, send.bind(null, route.contentType, res));
       var onOutputGenerated = function(err, resultText) {
-        serveResult(null, resultText);
+        serveResult(err, resultText);
       };
       var onComputePackage = function(rootModuleID, ppackage) {
         TimingData.data.findEnd = Date.now();
@@ -104,7 +101,7 @@ exports.provide = function provide(buildConfig) {
       };
       var packageOptions = {
         buildConfig: buildConfig,
-        rootModuleAbsolutePath: route.rootModuleAbsolutePath,
+        rootModuleAbsolutePath: path.join(buildConfig.pageRouteRoot || '', route.rootModulePath),
         runtimeDependencies: REACT_RUNTIME_DEPENDENCIES.concat(
           buildConfig.skipES5Shim ? [] : ES5_RUNTIME_DEPENDENCIES
         )
@@ -144,4 +141,3 @@ exports.compute = function(buildConfig) {
     );
   };
 };
-

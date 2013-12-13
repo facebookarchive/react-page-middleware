@@ -15,8 +15,9 @@
  */
 "use strict";
 
-var TimingData = require('./TimingData');
+var path = require('path');
 
+var TimingData = require('./TimingData');
 var consts = require('./consts');
 var extractSourceMappedStack = require('./extractSourceMappedStack');
 
@@ -37,14 +38,16 @@ function createClientScript(rootModuleID, props) {
   );
 }
 
-function createClientIncludeScript(indexNormalizedRequestPath) {
+function createClientIncludeScript(rootModulePath) {
   return (
     '<script type="text/javascript" src="' +
-      indexNormalizedRequestPath
-        .replace(consts.PAGE_EXT_RE, '') + '.' +
-        consts.INCLUDE_REQUIRE_TAG + '.' +   // Include require system
-        consts.RUN_MODULE_TAG +              // And run the bundle
-      consts.BUNDLE_EXT + '"> ' +
+      path.join(
+        '/',
+        rootModulePath
+          .replace(consts.JS_SRC_EXT_RE, '') + '.' +
+          renderReactPage.bundleTagsForFullPage().join('.') +
+          consts.BUNDLE_EXT
+      ) + '"> ' +
     '</script><packaged ></packaged>'
   );
 }
@@ -73,38 +76,47 @@ function createServerRenderScript(rootModuleID, props) {
 var renderReactPage = function(options) {
   try {
     var sandboxScript = options.bundleText +
+      '\n' +
       createServerRenderScript(options.rootModuleID, options.props);
     TimingData.data.concatEnd = Date.now();
-    var jsSources = createClientIncludeScript(options.indexNormalizedRequestPath);
+    var jsSources = createClientIncludeScript(options.rootModulePath);
 
     // Todo: Don't reflow - and root must be at <html>!
     var jsScripts = createClientScript(options.rootModuleID, options.props);
-
     if (options.serverRender) {
-      var vm = require('vm');
-      var sandbox = {renderResult: ''};
-      vm.runInNewContext(sandboxScript, sandbox);
-      if (sandbox.renderResult.indexOf('</body></html') === -1) {
-        throw new Error(
-          'Could not figure out where to place react-page <script> tags.' +
-          ' Please ensure that there is nothing between </body> and </html>' +
-          ' in your app.'
+      try {
+        var vm = require('vm');
+        var sandbox = {renderResult: ''};
+        vm.runInNewContext(sandboxScript, sandbox);
+        if (sandbox.renderResult.indexOf('</body></html') === -1) {
+          throw new Error(
+            'Could not figure out where to place react-page <script> tags.' +
+            ' Please ensure that there is nothing between </body> and </html>' +
+            ' in your app.'
+          );
+        }
+        var page = sandbox.renderResult.replace(
+          '</body></html',
+          jsSources + jsScripts + '</body></html'
         );
+        options.done(null, page);
+      } catch (err) {
+        var sourceMappedStack = extractSourceMappedStack(options.ppackage, err.stack);
+        options.done(new Error(sourceMappedStack));
       }
-      var page = sandbox.renderResult.replace(
-        '</body></html', jsSources + jsScripts + '</body></html'
-      );
-      options.done(null, page);
     } else {
       var lazyPage = '<html><head>' + jsSources + jsScripts + '</head><body></body></html>';
       options.done(null, lazyPage);
     }
-  } catch (err) {
-    var sourceMappedStack =
-      extractSourceMappedStack(options.ppackage, err.stack);
-    options.done(new Error(sourceMappedStack));
+  } catch (e) {
+    options.done(e, null);
   }
 };
+
+renderReactPage.bundleTagsForFullPage = function() {
+  return [consts.INCLUDE_REQUIRE_TAG];
+};
+
 
 module.exports = renderReactPage;
 
