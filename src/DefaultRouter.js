@@ -44,7 +44,7 @@ var convertSourceMap = require('convert-source-map');
  *
  * - Accepts a URL from a server request.
  * - Asynchronously determines a "route" object describing at least two things:
- * -- Absolute path to the root JS module corresponding to the request.
+ * -- Path to the root JS module corresponding to the request.
  * -- The content type of the response.
  * -- The determined route may also include as many other things as your router
  *  would like.
@@ -67,7 +67,7 @@ var convertSourceMap = require('convert-source-map');
  *
  * @typedef RouteData {
  *  contentType: string,           // Content-type header field
- *  rootModuleAbsolutePath: string // Absolute path to "root" JS module
+ *  rootModulePath: string         // Path to "root" JS module
  *  // (whatever other fields you want: "additional props" etc.
  * };
  *
@@ -105,8 +105,8 @@ var convertSourceMap = require('convert-source-map');
  *   generated bundle:
  * -- runModule: Puts `require('YourModule')` at the end of the bundle so it is
  *  ran automatically.
- * -- includeRequire: Controls whether or not to include the require runtim. If
- *  a previous bundle already defined it you know you don't have to.
+ * -- includeRequire: Controls whether or not to include the require runtime.
+ *  If a previous bundle already defined it you know you don't have to.
  */
 
 /**
@@ -133,9 +133,9 @@ var keyMirror = function(obj) {
   return ret;
 };
 
-var JS_TYPE = 'application/javascript';
-var MAPS_TYPE = 'text';
-var HTML_TYPE = 'text/html';
+var JS_TYPE = 'application/javascript; charset=utf-8';
+var MAPS_TYPE = 'text; charset=utf-8';
+var HTML_TYPE = 'text/html; charset=utf-8';
 
 /**
  * Bundle the require implementation
@@ -193,9 +193,11 @@ var _getDefaultRouteData = function(buildConfig, reqURL) {
   var routeType = endsInHTML || !hasExtension ? RouteTypes.fullPageRender :
     endsInBundle ? RouteTypes.jsBundle :
     endsInMap ? RouteTypes.jsMaps : null;
+
   if (!routeType || reqPath.indexOf('..') !== -1) {
     return null;
   }
+
   var contentType = routeType === RouteTypes.fullPageRender ? HTML_TYPE :
     routeType === RouteTypes.jsBundle ? JS_TYPE :
     routeType === RouteTypes.jsMaps ? MAPS_TYPE : null;
@@ -203,15 +205,14 @@ var _getDefaultRouteData = function(buildConfig, reqURL) {
   // Normalize localhost/myPage to localhost/myPage/index.html
   var indexNormalizedRequestPath =
     !hasExtension ? path.join(reqPath, '/index.html') : reqPath;
-  var allTagsAndExtensionsMatch =
-    indexNormalizedRequestPath.match(consts.ALL_TAGS_AND_EXT_RE);
-  if (!allTagsAndExtensionsMatch) {
-    return null;
-  }
-  var tagsAndExtension = allTagsAndExtensionsMatch && allTagsAndExtensionsMatch[1];
-  var tagsAndExtensionSplit = tagsAndExtension && tagsAndExtension.split('.');
-  var tags = tagsAndExtensionSplit &&
-    tagsAndExtensionSplit.slice(0, tagsAndExtensionSplit.length - 1);
+
+  var rootModulePath = path.join(
+      // .html => .js, .bundle => js, .map => .js
+      indexNormalizedRequestPath.replace(consts.ALL_TAGS_AND_EXT_RE, consts.JS_SRC_EXT)
+        .replace(consts.BUNDLE_EXT_RE, consts.JS_SRC_EXT)
+        .replace(consts.MAP_EXT_RE, consts.JS_SRC_EXT)
+        .replace(consts.LEADING_SLASH_RE, '')
+    );
 
   return {
     /**
@@ -219,25 +220,37 @@ var _getDefaultRouteData = function(buildConfig, reqURL) {
      * by all routers.
      */
     contentType: contentType,
-    rootModuleAbsolutePath: path.join(
-      buildConfig.pageRouteRoot || '',
-        // .html => .js, .bundle => js, .map => .js
-        indexNormalizedRequestPath.replace(consts.ALL_TAGS_AND_EXT_RE, consts.JS_SRC_EXT)
-          .replace(consts.BUNDLE_EXT_RE, consts.JS_SRC_EXT)
-          .replace(consts.MAP_EXT_RE, consts.JS_SRC_EXT)
-          .replace(consts.LEADING_SLASH_RE, '')
-    ),
+    rootModulePath: rootModulePath,
 
     /**
      * The remaining fields are anticipated by `DefaultRouter`'s particular
      * `routePackageHandler`.
      */
     type: routeType,
-    tags: tags,
     indexNormalizedRequestPath: indexNormalizedRequestPath,
+    bundleTags: getBundleTagsForRequestPath(indexNormalizedRequestPath, routeType),
     additionalProps: {requestParams: url.parse(reqURL, true).query}
   };
 };
+
+var getBundleTagsForRequestPath = function(indexNormalizedRequestPath, routeType) {
+  if (routeType === RouteTypes.fullPageRender) {
+    // Make sure we include the same bundle tags when server rendering as
+    // what will be downloaded after the initial page load.
+    return renderReactPage.bundleTagsForFullPage();
+  } else {
+    var allTagsAndExtensionsMatch =
+      indexNormalizedRequestPath.match(consts.ALL_TAGS_AND_EXT_RE);
+    if (!allTagsAndExtensionsMatch) {
+      return [];
+    }
+    var tagsAndExtension = allTagsAndExtensionsMatch && allTagsAndExtensionsMatch[1];
+    var tagsAndExtensionSplit = tagsAndExtension && tagsAndExtension.split('.');
+    return tagsAndExtensionSplit &&
+      tagsAndExtensionSplit.slice(0, tagsAndExtensionSplit.length - 1);
+  }
+};
+
 
 /**
  * @param {object} buildConfig Options for building.
@@ -252,11 +265,11 @@ var preparePackage = function(buildConfig, route, rootModuleID, ppackage) {
   processCode +=
     '\nprocess.env.NODE_ENV = "' + (buildConfig.dev ? 'development' : 'production') + '";\n';
   ppackage.unshift(PROCESS_RUNTIME_PATH, processCode, processCode);
-  if (route.tags.indexOf(consts.INCLUDE_REQUIRE_TAG) !== -1) {
+  if (route.bundleTags.indexOf(consts.INCLUDE_REQUIRE_TAG) !== -1) {
     ppackage.unshift(REQUIRE_RUNTIME_PATH, REQUIRE_RUNTIME, REQUIRE_RUNTIME);
   }
   ppackage.unshift('/dynamically-generated.js', devStr, devStr);
-  if (route.tags.indexOf(consts.RUN_MODULE_TAG) !== -1) {
+  if (route.bundleTags.indexOf(consts.RUN_MODULE_TAG) !== -1) {
     var moduleRunnerSource = "require('" + rootModuleID + "');null;";
     ppackage.push("PackageRun" + rootModuleID, moduleRunnerSource, moduleRunnerSource);
   }
@@ -271,7 +284,8 @@ var routePackageHandler = function(buildConfig, route, rootModuleID, ppackage, n
       Chart.logPageServeTime(TimingData.data);
     }
   } else if (route.type === RouteTypes.jsBundle) {
-    next(null, computeJSBundle(buildConfig, route, ppackage));
+    var computedBundle = computeJSBundle(buildConfig, route, ppackage);
+    next(null, computedBundle);
     TimingData.data.serveEnd = Date.now();
     if (buildConfig.logTiming) {
       Chart.logBundleServeTime(TimingData.data);
@@ -291,8 +305,12 @@ var decideRoute = function(buildConfig, reqURL, next) {
   if (!buildConfig.pageRouteRoot) {
     return next(new Error('Must specify default router root'));
   } else {
-    var routerData =  _getDefaultRouteData(buildConfig, reqURL);
-    return next(routerData ? null : new Error('No route for:' + reqURL), routerData);
+    try {
+      var routerData =  _getDefaultRouteData(buildConfig, reqURL);
+      return next(null, routerData);
+    } catch (e) {
+      return next(e, null);
+    }
   }
 };
 
@@ -319,7 +337,7 @@ var renderComponentPackage = function(buildConfig, route, rootModuleID, ppackage
   var props =  route.additionalProps || {};
   renderReactPage({
     serverRender: buildConfig.serverRender,
-    indexNormalizedRequestPath: route.indexNormalizedRequestPath,
+    rootModulePath: route.rootModulePath,
     rootModuleID: rootModuleID,
     props: props,
     bundleText: jsBundleText,
