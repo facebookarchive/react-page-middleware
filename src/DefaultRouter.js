@@ -209,7 +209,7 @@ var _getDefaultRouteData = function(buildConfig, reqURL) {
     type: routeType,
     indexNormalizedRequestPath: reqPath,
     bundleTags: getBundleTagsForRequestPath(reqPath, routeType),
-    additionalProps: {path: reqURL}
+    additionalProps: {initialPath: reqURL}
   };
 };
 
