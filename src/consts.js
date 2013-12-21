@@ -28,7 +28,6 @@ module.exports = {
   // localhost:8080/path/to/Root.x.y.z.a.b.c.d.e.f.g.bundle
   //                             \----- tags ------/ \type/
   // Route types:
-  PAGE_EXT_RE: /\.html$/,
 
   BUNDLE_EXT: '.bundle',
   BUNDLE_EXT_RE: /\.bundle$/,

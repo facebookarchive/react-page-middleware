@@ -186,13 +186,10 @@ var RouteTypes = keyMirror({
  */
 var _getDefaultRouteData = function(buildConfig, reqURL) {
   var reqPath = url.parse(reqURL).pathname;
-  var hasExtension = consts.HAS_EXT_RE.test(reqPath);
-  var endsInHTML = consts.PAGE_EXT_RE.test(reqPath);
   var endsInBundle = consts.BUNDLE_EXT_RE.test(reqPath);
   var endsInMap = consts.MAP_EXT_RE.test(reqPath);
-  var routeType = endsInHTML || !hasExtension ? RouteTypes.fullPageRender :
-    endsInBundle ? RouteTypes.jsBundle :
-    endsInMap ? RouteTypes.jsMaps : null;
+  var routeType = endsInBundle ? RouteTypes.jsBundle :
+    endsInMap ? RouteTypes.jsMaps : RouteTypes.fullPageRender;
 
   if (!routeType || reqPath.indexOf('..') !== -1) {
     return null;
@@ -202,17 +199,19 @@ var _getDefaultRouteData = function(buildConfig, reqURL) {
     routeType === RouteTypes.jsBundle ? JS_TYPE :
     routeType === RouteTypes.jsMaps ? MAPS_TYPE : null;
 
-  // Normalize localhost/myPage to localhost/myPage/index.html
-  var indexNormalizedRequestPath =
-    !hasExtension ? path.join(reqPath, '/index.html') : reqPath;
-
   var rootModulePath = path.join(
-      // .html => .js, .bundle => js, .map => .js
-      indexNormalizedRequestPath.replace(consts.ALL_TAGS_AND_EXT_RE, consts.JS_SRC_EXT)
-        .replace(consts.BUNDLE_EXT_RE, consts.JS_SRC_EXT)
-        .replace(consts.MAP_EXT_RE, consts.JS_SRC_EXT)
-        .replace(consts.LEADING_SLASH_RE, '')
-    );
+    // .bundle => .js, .map => .js
+    reqPath.replace(consts.ALL_TAGS_AND_EXT_RE, consts.JS_SRC_EXT)
+      .replace(consts.BUNDLE_EXT_RE, consts.JS_SRC_EXT)
+      .replace(consts.MAP_EXT_RE, consts.JS_SRC_EXT)
+      .replace(consts.LEADING_SLASH_RE, '')
+  );
+
+  // no ext => .js
+  if (rootModulePath.indexOf(consts.JS_SRC_EXT) !==
+      rootModulePath.length - consts.JS_SRC_EXT.length) {
+    path += consts.JS_SRC_EXT;
+  }
 
   return {
     /**
@@ -227,8 +226,8 @@ var _getDefaultRouteData = function(buildConfig, reqURL) {
      * `routePackageHandler`.
      */
     type: routeType,
-    indexNormalizedRequestPath: indexNormalizedRequestPath,
-    bundleTags: getBundleTagsForRequestPath(indexNormalizedRequestPath, routeType),
+    indexNormalizedRequestPath: reqPath,
+    bundleTags: getBundleTagsForRequestPath(reqPath, routeType),
     additionalProps: {requestParams: url.parse(reqURL, true).query}
   };
 };
