@@ -16,6 +16,7 @@
 "use strict";
 
 module.exports = {
+  ROOT_MODULE_NAME: 'root.js',
   LEADING_SLASH_RE: /^\//,
   INDEX_JS_SUFFIX_RE: /\/index\.js[^\/]*$/,
 

@@ -173,12 +173,7 @@ var RouteTypes = keyMirror({
  * http://localhost:8080/index.bundle => src/pages/index.js(bundled)
  * http://localhost:8080/about/index.bundle => src/pages/index.js(bundled)
  *
- * If no `.bundle` or `.html` is found at the end of the URL, the default router
- * will append `index.html` to the end, before performing the routing convention
- * listed above.
- *
  * So http://localhost:8080/some/path
- * normalized => http://localhost:8080/some/path/index.html
  * rendered   => http://localhost:8080/some/path/index.js
  * bundled   => http://localhost:8080/some/path/index.bundle
  *
@@ -199,27 +194,13 @@ var _getDefaultRouteData = function(buildConfig, reqURL) {
     routeType === RouteTypes.jsBundle ? JS_TYPE :
     routeType === RouteTypes.jsMaps ? MAPS_TYPE : null;
 
-  var rootModulePath = path.join(
-    // .bundle => .js, .map => .js
-    reqPath.replace(consts.ALL_TAGS_AND_EXT_RE, consts.JS_SRC_EXT)
-      .replace(consts.BUNDLE_EXT_RE, consts.JS_SRC_EXT)
-      .replace(consts.MAP_EXT_RE, consts.JS_SRC_EXT)
-      .replace(consts.LEADING_SLASH_RE, '')
-  );
-
-  // no ext => .js
-  if (rootModulePath.indexOf(consts.JS_SRC_EXT) !==
-      rootModulePath.length - consts.JS_SRC_EXT.length) {
-    path += consts.JS_SRC_EXT;
-  }
-
   return {
     /**
      * The only "first class" routing fields that are expected to be returned
      * by all routers.
      */
     contentType: contentType,
-    rootModulePath: rootModulePath,
+    rootModulePath: consts.ROOT_MODULE_NAME,
 
     /**
      * The remaining fields are anticipated by `DefaultRouter`'s particular
@@ -228,7 +209,7 @@ var _getDefaultRouteData = function(buildConfig, reqURL) {
     type: routeType,
     indexNormalizedRequestPath: reqPath,
     bundleTags: getBundleTagsForRequestPath(reqPath, routeType),
-    additionalProps: {requestParams: url.parse(reqURL, true).query}
+    additionalProps: {path: reqURL}
   };
 };
 
