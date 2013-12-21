@@ -17,10 +17,7 @@
 
 module.exports = {
   ROOT_MODULE_NAME: 'root.js',
-  LEADING_SLASH_RE: /^\//,
-  INDEX_JS_SUFFIX_RE: /\/index\.js[^\/]*$/,
 
-  HAS_EXT_RE: /\.[^\/]*$/,
   // Captures the set of tags and extension in parens ()
   ALL_TAGS_AND_EXT_RE: /\.([^\/]+)$/,
 
