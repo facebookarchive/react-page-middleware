@@ -335,7 +335,13 @@ var decideRoute = function(buildConfig, reqURL, next) {
 var renderComponentPackage = function(buildConfig, route, rootModuleID, ppackage, next) {
   var jsBundleText = computeJSBundle(buildConfig, route, ppackage);
   var props =  route.additionalProps || {};
+  var defaultExposedObjects = {};
   renderReactPage({
+    exposeInEnvironment: (
+      buildConfig.exposeInEnvironment 
+        ? buildConfig.exposeInEnvironment
+        : defaultExposedObjects
+    ),
     serverRender: buildConfig.serverRender,
     rootModulePath: route.rootModulePath,
     rootModuleID: rootModuleID,
