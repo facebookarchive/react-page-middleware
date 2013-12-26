@@ -83,7 +83,7 @@ exports.provide = function provide(buildConfig) {
     var decideRoute = router.decideRoute;
     var routePackageHandler = router.routePackageHandler;
 
-    decideRoute(buildConfig, req.url, function(err, route) {
+    decideRoute(buildConfig, req.url, req.query, function(err, route) {
       TimingData.data = {pageStart: Date.now()};
       if (err || !route) {
         return next(err);
@@ -97,7 +97,7 @@ exports.provide = function provide(buildConfig) {
       };
       var onComputePackage = function(rootModuleID, ppackage) {
         TimingData.data.findEnd = Date.now();
-        routePackageHandler(buildConfig, route, rootModuleID, ppackage, onOutputGenerated);
+        routePackageHandler(buildConfig, route, req.query, rootModuleID, ppackage, onOutputGenerated);
       };
       var packageOptions = {
         buildConfig: buildConfig,
