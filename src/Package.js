@@ -83,8 +83,8 @@ Package.prototype._updateSealedPackage = function(computeSourceMaps) {
       for (var t = 0; t < transformedSource.length; t++) {
         if (t === 0 || lastCharNewLine) {
           this._sourceMapGenerator.addMapping({
-            generated: {line: packageLineCount + 1, column: 1},
-            original: {line: transformedLineCount + 1, column: 1},
+            generated: {line: packageLineCount + 1, column: 0},
+            original: {line: transformedLineCount + 1, column: 0},
             source: item.originPath
           });
         }
