@@ -132,10 +132,11 @@ exports.compute = function(buildConfig) {
       throw new Error('Must supply file to compute build from:');
     }
     var mockRequestedURL = 'http://localhost:8080/' + requestedPath;
+    var noop = function() {};
     exports.provide(buildConfig)(
-      {url: mockRequestedURL},               // req
-      {end: onComputed},                     // res
-      function(err) {                        // next()
+      {url: mockRequestedURL, method: 'GET'}, // req
+      {end: onComputed, setHeader: noop},     // res
+      function(err) {                         // next()
         console.log('ERROR computing build:', err);
       }
     );
