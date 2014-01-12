@@ -33,7 +33,7 @@ var hasteLoaders = require('node-haste/lib/loaders');
 var path = require('path');
 var transform = require('jstransform').transform;
 
-var reactVisitors = require('react-tools/vendor/fbtransform/visitors').getVisitorsList();
+var reactVisitors = require('react-tools/vendor/fbtransform/visitors').getAllVisitors();
 var es6Classes = require('jstransform/visitors/es6-class-visitors').visitorList;
 var es6RestParameters = require('jstransform/visitors/es6-rest-param-visitors').visitorList;
 var es6ArrowFunctions = require('jstransform/visitors/es6-arrow-function-visitors').visitorList;
