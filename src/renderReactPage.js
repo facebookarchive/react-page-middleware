@@ -56,9 +56,8 @@ function createServerRenderScript(rootModuleID, props) {
   return (
     'var React = require(\'React\');' +
     'var Component = require(\'' + rootModuleID + '\');' +
-    'React.renderComponentToString(' +
-      'Component('+ JSON.stringify(props) + '),' +
-      'function(str) {renderResult = str;} '+
+    'renderResult = React.renderComponentToString(' +
+      'Component('+ JSON.stringify(props) + ')' +
     ');'
   );
 }
