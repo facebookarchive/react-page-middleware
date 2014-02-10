@@ -1,3 +1,9 @@
+- - -
+
+**_This project is not actively maintained. Proceed at your own risk!_**
+
+- - -
+
 react-page-middleware
 ===============================================
 Middleware for building full page apps using React, JSX, and CommonJS.
