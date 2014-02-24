@@ -38,9 +38,10 @@ var es6Classes = require('jstransform/visitors/es6-class-visitors').visitorList;
 var es6RestParameters = require('jstransform/visitors/es6-rest-param-visitors').visitorList;
 var es6ArrowFunctions = require('jstransform/visitors/es6-arrow-function-visitors').visitorList;
 var es6ObjectShortNotation = require('jstransform/visitors/es6-object-short-notation-visitors').visitorList;
+var es6TemplateStrings = require('jstransform/visitors/es6-template-visitors').visitorList;
 
 var visitorList = reactVisitors.concat(
-  es6Classes, es6RestParameters, es6ArrowFunctions, es6ObjectShortNotation
+  es6Classes, es6RestParameters, es6ArrowFunctions, es6ObjectShortNotation, es6TemplateStrings
 );
 
 var originalSourceCache = {};
