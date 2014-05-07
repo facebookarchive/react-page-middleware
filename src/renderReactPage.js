@@ -62,6 +62,16 @@ function createServerRenderScript(rootModuleID, props) {
   );
 }
 
+function createServerRenderStaticScript(rootModuleID, props) {
+  return (
+    'var React = require(\'React\');' +
+    'var Component = require(\'' + rootModuleID + '\');' +
+    'renderResult = React.renderComponentToStaticMarkup(' +
+      'Component('+ JSON.stringify(props) + ')' +
+    ');'
+  );
+}
+
 /**
  * @param options {
  *   @property {Route} rout Rout that caused request to arrive here.
@@ -74,9 +84,20 @@ function createServerRenderScript(rootModuleID, props) {
  */
 var renderReactPage = function(options) {
   try {
-    var sandboxScript = options.bundleText +
-      '\n' +
-      createServerRenderScript(options.rootModuleID, options.props);
+    console.log(Object.keys(options));
+    var sandboxScript = options.bundleText + '\n';
+
+    if (options.static) {
+      sandboxScript += createServerRenderStaticScript(
+        options.rootModuleID,
+        options.props
+      );
+    } else {
+      sandboxScript += createServerRenderScript(
+        options.rootModuleID,
+        options.props
+      );
+    }
     TimingData.data.concatEnd = Date.now();
     var jsSources = createClientIncludeScript(options.rootModulePath);
 
@@ -94,10 +115,13 @@ var renderReactPage = function(options) {
             ' in your app.'
           );
         }
-        var page = sandbox.renderResult.replace(
-          '</body></html',
-          jsSources + jsScripts + '</body></html'
-        );
+        var page = sandbox.renderResult
+        if (!options.static) {
+          page = page.replace(
+            '</body></html',
+            jsSources + jsScripts + '</body></html'
+          );
+        }
         options.done(null, page);
       } catch (err) {
         var sourceMappedStack = extractSourceMappedStack(options.ppackage, err.stack);
@@ -118,4 +142,3 @@ renderReactPage.bundleTagsForFullPage = function() {
 
 
 module.exports = renderReactPage;
-
