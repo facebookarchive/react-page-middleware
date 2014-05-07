@@ -84,7 +84,6 @@ function createServerRenderStaticScript(rootModuleID, props) {
  */
 var renderReactPage = function(options) {
   try {
-    console.log(Object.keys(options));
     var sandboxScript = options.bundleText + '\n';
 
     if (options.static) {
