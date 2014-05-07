@@ -342,6 +342,7 @@ var renderComponentPackage = function(buildConfig, route, rootModuleID, ppackage
     props: props,
     bundleText: jsBundleText,
     ppackage: ppackage,
+    static: buildConfig['static'],
     /**
      * @param {Error} err Error that occured.
      * @param {string} markup Markup result.
