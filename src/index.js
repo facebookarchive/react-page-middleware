@@ -67,6 +67,12 @@ function send(type, res, str, mtime) {
   res.end(str);
 }
 
+/**
+ * Provides a middleware implementation that routes static react calls
+ * Data can be passed to the topmost react element via req.additionalProps
+ * which will be accessible via this.props in the component
+ *
+ */
 exports.provide = function provide(buildConfig) {
   validateBuildConfig(buildConfig);
   /**
@@ -83,7 +89,7 @@ exports.provide = function provide(buildConfig) {
     var decideRoute = router.decideRoute;
     var routePackageHandler = router.routePackageHandler;
 
-    decideRoute(buildConfig, req.url, function(err, route) {
+    decideRoute(buildConfig, req.url, req.additionalProps, function(err, route) {
       TimingData.data = {pageStart: Date.now()};
       if (err || !route) {
         return next(err);
