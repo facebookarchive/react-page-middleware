@@ -184,7 +184,7 @@ var RouteTypes = keyMirror({
  *
  * @return Route data or null if none applicable.
  */
-var _getDefaultRouteData = function(buildConfig, reqURL) {
+var _getDefaultRouteData = function(buildConfig, reqURL, reqAdditionalProps) {
   var reqPath = url.parse(reqURL).pathname;
   var hasExtension = consts.HAS_EXT_RE.test(reqPath);
   var endsInHTML = consts.PAGE_EXT_RE.test(reqPath);
@@ -214,6 +214,9 @@ var _getDefaultRouteData = function(buildConfig, reqURL) {
         .replace(consts.LEADING_SLASH_RE, '')
     );
 
+  var additionalProps = reqAdditionalProps || {};
+  additionalProps.requestParams = url.parse(reqURL, true).query;
+
   return {
     /**
      * The only "first class" routing fields that are expected to be returned
@@ -229,7 +232,7 @@ var _getDefaultRouteData = function(buildConfig, reqURL) {
     type: routeType,
     indexNormalizedRequestPath: indexNormalizedRequestPath,
     bundleTags: getBundleTagsForRequestPath(indexNormalizedRequestPath, routeType),
-    additionalProps: {requestParams: url.parse(reqURL, true).query}
+    additionalProps: additionalProps
   };
 };
 
@@ -301,12 +304,12 @@ var routePackageHandler = function(buildConfig, route, rootModuleID, ppackage, n
   }
 };
 
-var decideRoute = function(buildConfig, reqURL, next) {
+var decideRoute = function(buildConfig, reqURL, reqAdditionalProps, next) {
   if (!buildConfig.pageRouteRoot) {
     return next(new Error('Must specify default router root'));
   } else {
     try {
-      var routerData =  _getDefaultRouteData(buildConfig, reqURL);
+      var routerData =  _getDefaultRouteData(buildConfig, reqURL, reqAdditionalProps);
       return next(null, routerData);
     } catch (e) {
       return next(e, null);
