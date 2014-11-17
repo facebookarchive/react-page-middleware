@@ -97,7 +97,6 @@ var renderReactPage = function(options) {
         options.props
       );
     }
-
     TimingData.data.concatEnd = Date.now();
     var jsSources = createClientIncludeScript(options.rootModulePath);
 
