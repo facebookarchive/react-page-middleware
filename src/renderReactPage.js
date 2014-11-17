@@ -30,8 +30,8 @@ function createClientScript(rootModuleID, props) {
       'var ReactMount = require(\'ReactMount\');' +
       'var Component = require(\'' + rootModuleID + '\');' +
       'ReactMount.allowFullPageRender = true;' +
-      'React.renderComponent(' +
-        'Component('+ JSON.stringify(props) + '),' +
+      'React.render(' +
+        'React.createElement(Component, '+ JSON.stringify(props) + '),' +
         'document' +
       ');' +
     '</script>'
@@ -56,8 +56,8 @@ function createServerRenderScript(rootModuleID, props) {
   return (
     'var React = require(\'React\');' +
     'var Component = require(\'' + rootModuleID + '\');' +
-    'renderResult = React.renderComponentToString(' +
-      'Component('+ JSON.stringify(props) + ')' +
+    'var renderResult = React.renderToString(' +
+      'React.createElement(Component, '+ JSON.stringify(props) + ')' +
     ');'
   );
 }
@@ -66,8 +66,8 @@ function createServerRenderStaticScript(rootModuleID, props) {
   return (
     'var React = require(\'React\');' +
     'var Component = require(\'' + rootModuleID + '\');' +
-    'renderResult = React.renderComponentToStaticMarkup(' +
-      'Component('+ JSON.stringify(props) + ')' +
+    'var renderResult = React.renderToStaticMarkup(' +
+      'React.createElement(Component, '+ JSON.stringify(props) + ')' +
     ');'
   );
 }
@@ -97,6 +97,7 @@ var renderReactPage = function(options) {
         options.props
       );
     }
+
     TimingData.data.concatEnd = Date.now();
     var jsSources = createClientIncludeScript(options.rootModulePath);
 
