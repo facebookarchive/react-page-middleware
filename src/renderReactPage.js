@@ -123,8 +123,9 @@ var renderReactPage = function(options) {
         }
         options.done(null, page);
       } catch (err) {
-        var sourceMappedStack = extractSourceMappedStack(options.ppackage, err.stack);
-        options.done(new Error(sourceMappedStack));
+//        var sourceMappedStack = extractSourceMappedStack(options.ppackage, err.stack);
+//        options.done(new Error(sourceMappedStack));
+        options.done(err);
       }
     } else {
       var lazyPage = '<html><head>' + jsSources + jsScripts + '</head><body></body></html>';
