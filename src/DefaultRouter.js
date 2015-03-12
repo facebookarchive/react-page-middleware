@@ -184,7 +184,7 @@ var RouteTypes = keyMirror({
  *
  * @return Route data or null if none applicable.
  */
-var _getDefaultRouteData = function(buildConfig, reqURL) {
+var _getDefaultRouteData = function(buildConfig, reqURL, queryParams) {
   var reqPath = url.parse(reqURL).pathname;
   var hasExtension = consts.HAS_EXT_RE.test(reqPath);
   var endsInHTML = consts.PAGE_EXT_RE.test(reqPath);
@@ -275,10 +275,10 @@ var preparePackage = function(buildConfig, route, rootModuleID, ppackage) {
   }
 };
 
-var routePackageHandler = function(buildConfig, route, rootModuleID, ppackage, next) {
+var routePackageHandler = function(buildConfig, route, queryParams, rootModuleID, ppackage, next) {
   preparePackage(buildConfig, route, rootModuleID, ppackage);
   if (route.type === RouteTypes.fullPageRender) {
-    renderComponentPackage(buildConfig, route, rootModuleID, ppackage, next);
+    renderComponentPackage(buildConfig, route, queryParams, rootModuleID, ppackage, next);
     TimingData.data.serveEnd = Date.now();
     if (buildConfig.logTiming) {
       Chart.logPageServeTime(TimingData.data);
@@ -301,12 +301,12 @@ var routePackageHandler = function(buildConfig, route, rootModuleID, ppackage, n
   }
 };
 
-var decideRoute = function(buildConfig, reqURL, next) {
+var decideRoute = function(buildConfig, reqURL, queryParams, next) {
   if (!buildConfig.pageRouteRoot) {
     return next(new Error('Must specify default router root'));
   } else {
     try {
-      var routerData =  _getDefaultRouteData(buildConfig, reqURL);
+      var routerData =  _getDefaultRouteData(buildConfig, reqURL, queryParams);
       return next(null, routerData);
     } catch (e) {
       return next(e, null);
@@ -332,10 +332,18 @@ var decideRoute = function(buildConfig, reqURL, next) {
  * @param {Package} Contains information about all dependencies for given route.
  * @param {function} next When complete.
  */
-var renderComponentPackage = function(buildConfig, route, rootModuleID, ppackage, next) {
+var renderComponentPackage = function(buildConfig, route, queryParams, rootModuleID, ppackage, next) {
   var jsBundleText = computeJSBundle(buildConfig, route, ppackage);
   var props =  route.additionalProps || {};
+  var defaultExposedObjects = {};
+	var exposedObjects = {};
+
+	// pass Express query parameters into environment as queryParams
+	exposedObjects = buildConfig.exposeInEnvironment ? buildConfig.exposeInEnvironment : defaultExposedObjects;
+	exposedObjects.queryParams = queryParams;
+
   renderReactPage({
+    exposeInEnvironment: exposedObjects,
     serverRender: buildConfig.serverRender,
     rootModulePath: route.rootModulePath,
     rootModuleID: rootModuleID,

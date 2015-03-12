@@ -105,7 +105,11 @@ var renderReactPage = function(options) {
     if (options.serverRender) {
       try {
         var vm = require('vm');
-        var sandbox = {renderResult: '', console: console};
+        var sandbox = options.exposeInEnvironment;
+				// add additional helpers into context
+        sandbox.renderResult = '';
+        sandbox.console = console;
+				console.log(sandbox);
         vm.runInNewContext(sandboxScript, sandbox);
         if (sandbox.renderResult.indexOf('</body></html') === -1) {
           throw new Error(
