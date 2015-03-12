@@ -16,10 +16,8 @@
 "use strict";
 
 module.exports = {
-  LEADING_SLASH_RE: /^\//,
-  INDEX_JS_SUFFIX_RE: /\/index\.js[^\/]*$/,
+  ROOT_MODULE_NAME: 'root.js',
 
-  HAS_EXT_RE: /\.[^\/]*$/,
   // Captures the set of tags and extension in parens ()
   ALL_TAGS_AND_EXT_RE: /\.([^\/]+)$/,
 
@@ -28,7 +26,6 @@ module.exports = {
   // localhost:8080/path/to/Root.x.y.z.a.b.c.d.e.f.g.bundle
   //                             \----- tags ------/ \type/
   // Route types:
-  PAGE_EXT_RE: /\.html$/,
 
   BUNDLE_EXT: '.bundle',
   BUNDLE_EXT_RE: /\.bundle$/,

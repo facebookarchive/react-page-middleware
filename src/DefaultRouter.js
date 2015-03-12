@@ -173,12 +173,7 @@ var RouteTypes = keyMirror({
  * http://localhost:8080/index.bundle => src/pages/index.js(bundled)
  * http://localhost:8080/about/index.bundle => src/pages/index.js(bundled)
  *
- * If no `.bundle` or `.html` is found at the end of the URL, the default router
- * will append `index.html` to the end, before performing the routing convention
- * listed above.
- *
  * So http://localhost:8080/some/path
- * normalized => http://localhost:8080/some/path/index.html
  * rendered   => http://localhost:8080/some/path/index.js
  * bundled   => http://localhost:8080/some/path/index.bundle
  *
@@ -186,13 +181,10 @@ var RouteTypes = keyMirror({
  */
 var _getDefaultRouteData = function(buildConfig, reqURL) {
   var reqPath = url.parse(reqURL).pathname;
-  var hasExtension = consts.HAS_EXT_RE.test(reqPath);
-  var endsInHTML = consts.PAGE_EXT_RE.test(reqPath);
   var endsInBundle = consts.BUNDLE_EXT_RE.test(reqPath);
   var endsInMap = consts.MAP_EXT_RE.test(reqPath);
-  var routeType = endsInHTML || !hasExtension ? RouteTypes.fullPageRender :
-    endsInBundle ? RouteTypes.jsBundle :
-    endsInMap ? RouteTypes.jsMaps : null;
+  var routeType = endsInBundle ? RouteTypes.jsBundle :
+    endsInMap ? RouteTypes.jsMaps : RouteTypes.fullPageRender;
 
   if (!routeType || reqPath.indexOf('..') !== -1) {
     return null;
@@ -202,34 +194,22 @@ var _getDefaultRouteData = function(buildConfig, reqURL) {
     routeType === RouteTypes.jsBundle ? JS_TYPE :
     routeType === RouteTypes.jsMaps ? MAPS_TYPE : null;
 
-  // Normalize localhost/myPage to localhost/myPage/index.html
-  var indexNormalizedRequestPath =
-    !hasExtension ? path.join(reqPath, '/index.html') : reqPath;
-
-  var rootModulePath = path.join(
-      // .html => .js, .bundle => js, .map => .js
-      indexNormalizedRequestPath.replace(consts.ALL_TAGS_AND_EXT_RE, consts.JS_SRC_EXT)
-        .replace(consts.BUNDLE_EXT_RE, consts.JS_SRC_EXT)
-        .replace(consts.MAP_EXT_RE, consts.JS_SRC_EXT)
-        .replace(consts.LEADING_SLASH_RE, '')
-    );
-
   return {
     /**
      * The only "first class" routing fields that are expected to be returned
      * by all routers.
      */
     contentType: contentType,
-    rootModulePath: rootModulePath,
+    rootModulePath: consts.ROOT_MODULE_NAME,
 
     /**
      * The remaining fields are anticipated by `DefaultRouter`'s particular
      * `routePackageHandler`.
      */
     type: routeType,
-    indexNormalizedRequestPath: indexNormalizedRequestPath,
-    bundleTags: getBundleTagsForRequestPath(indexNormalizedRequestPath, routeType),
-    additionalProps: {requestParams: url.parse(reqURL, true).query}
+    indexNormalizedRequestPath: reqPath,
+    bundleTags: getBundleTagsForRequestPath(reqPath, routeType),
+    additionalProps: {initialPath: reqURL}
   };
 };
 
