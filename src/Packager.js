@@ -31,18 +31,7 @@ var async = require('async');
 var fs = require('fs');
 var hasteLoaders = require('node-haste/lib/loaders');
 var path = require('path');
-var transform = require('jstransform').transform;
-
-var reactVisitors = require('react-tools/vendor/fbtransform/visitors').getAllVisitors();
-var es6Classes = require('jstransform/visitors/es6-class-visitors').visitorList;
-var es6RestParameters = require('jstransform/visitors/es6-rest-param-visitors').visitorList;
-var es6ArrowFunctions = require('jstransform/visitors/es6-arrow-function-visitors').visitorList;
-var es6ObjectShortNotation = require('jstransform/visitors/es6-object-short-notation-visitors').visitorList;
-var es6TemplateStrings = require('jstransform/visitors/es6-template-visitors').visitorList;
-
-var visitorList = reactVisitors.concat(
-  es6Classes, es6RestParameters, es6ArrowFunctions, es6ObjectShortNotation, es6TemplateStrings
-);
+var transform = require('react-tools').transform;
 
 var originalSourceCache = {};
 var transformCache = {};
@@ -208,8 +197,7 @@ var transformModuleImpl = function(mod, modName, rawCode, done) {
     return mod.getModuleIDByOrigin(requiredName);
   };
   try {
-    var transformResult = transform(visitorList, rawCode);
-    var transformedCode = fixReactTransform(transformResult.code);
+    var transformedCode = fixReactTransform(transform(rawCode, {harmony: true}));
     var modularizedCode =
       Modularizer.modularize(modName, transformedCode, resolveModule);
     originalSourceCache[modName] = rawCode;
