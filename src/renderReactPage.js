@@ -114,7 +114,9 @@ var renderReactPage = function(options) {
             ' in your app.'
           );
         }
-        var page = sandbox.renderResult
+        // There's no way to render a doctype in React so prepend manually.
+        var page = '<!DOCTYPE html>' + sandbox.renderResult;
+
         if (!options.static) {
           page = page.replace(
             '</body></html',
@@ -128,7 +130,7 @@ var renderReactPage = function(options) {
         options.done(err);
       }
     } else {
-      var lazyPage = '<html><head>' + jsSources + jsScripts + '</head><body></body></html>';
+      var lazyPage = '<!DOCTYPE html><html><head>' + jsSources + jsScripts + '</head><body></body></html>';
       options.done(null, lazyPage);
     }
   } catch (e) {
