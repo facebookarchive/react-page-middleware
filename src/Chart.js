@@ -15,16 +15,13 @@
  */
 "use strict";
 
-var nodeTerminal = require('node-terminal');
+var chalk = require('chalk');
 
 
 /**
  * Super hacky charing utilities to report timing data.
  */
 
-var YELLOW = '%k%3';
-var GREEN = '%k%2';
-var RED = '%k%1';
 var LOG_WIDTH = 130;
 
 var renderChart = function(title, blocks, datas) {
@@ -35,31 +32,25 @@ var renderChart = function(title, blocks, datas) {
     sum += datas[d].value;
   }
   var totalColorBlocksRendered = 0;
-  nodeTerminal.write(title);
+  var chart = title;
   for (d = 0; d < datas.length; d++) {
     var val = datas[d].value;
     var pct = val / sum;
     var blocksToRender = Math.floor(pct * totalColorBlocks);
     var textLen = Math.min(datas[d].text.length, blocksToRender);
     var spacesToRender = blocksToRender - textLen;
-    var color = val < datas[d].bad/2 ? GREEN :
-      val < datas[d].bad ? YELLOW : RED;
-    nodeTerminal.colorize(color).colorize(
-      datas[d].text.substr(0, textLen)
-    );
-    for (var i = 0; i < spacesToRender; i++) {
-      nodeTerminal.write(' ');
-    }
+    var color = val < datas[d].bad/2 ? chalk.black.bgGreen :
+      val < datas[d].bad ? chalk.black.bgYellow : chalk.black.bgRed;
+    chart += color(datas[d].text.substr(0, textLen))
+    chart += color(times(' ', spacesToRender));
     totalColorBlocksRendered += blocksToRender;
     if (d === datas.length - 1) {
       var padding = Math.max(totalColorBlocks - totalColorBlocksRendered, 0);
-      for (var ii = 0; ii < padding; ii++) {
-        nodeTerminal.write(' ');
-      }
+      chart += color(times(' ', padding));
     }
-    nodeTerminal.reset().write(' ');
+    chart += ' ';
   }
-  nodeTerminal.reset().write('\n\n');
+  console.log(chart + '\n');
 };
 
 var firstBundle = false;
@@ -152,8 +143,8 @@ var logSummary = function(normalizedRequestPath, numModules) {
   var padL = Math.floor((columns - msg.length) / 2);
   var padR = padL * 2 < columns ? padL : padL;
   var formattedMsg = times(' ', padL) + msg + times(' ', padR);
-  nodeTerminal.reset().write('\n\n\n').write(formattedMsg).write('\n');
-  nodeTerminal.write(times('-', columns)).write('\n');
+  console.log('\n\n' + formattedMsg);
+  console.log(times('-', columns));
 };
 
 
