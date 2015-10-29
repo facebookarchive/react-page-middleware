@@ -141,14 +141,7 @@ var HTML_TYPE = 'text/html; charset=utf-8';
  * Bundle the require implementation
  */
 var REQUIRE_RUNTIME_PATH = path.resolve(__dirname, '..', 'polyfill/require.js');
-var PROCESS_RUNTIME_PATH = path.resolve(
-  __dirname,
-  '..',
-  'node_modules',
-  'browser-builtins',
-  'builtin',
-  'process.js'
-);
+var PROCESS_RUNTIME_PATH = require('browser-builtins').process;
 var REQUIRE_RUNTIME = fs.readFileSync(REQUIRE_RUNTIME_PATH, 'utf8');
 var PROCESS_RUNTIME =
   Modularizer.modularize('process', fs.readFileSync(PROCESS_RUNTIME_PATH, 'utf8'));
